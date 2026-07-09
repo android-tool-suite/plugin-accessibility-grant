@@ -1,0 +1,26 @@
+{
+  "format": "ats-plugin",
+  "formatVersion": "1",
+  "plugin": {
+    "id": "accessibility_grant",
+    "title": "无障碍授权",
+    "description": "通过 Shizuku 启用或停用已安装应用的无障碍服务。",
+    "version": "1.0",
+    "author": "Android Tool Suite",
+    "entryClass": "com.example.shizukuaccessibilitygrant.plugins.accessibility.AccessibilityGrantPlugin"
+  },
+  "permissions": [
+    "shizuku",
+    "shell.exec",
+    "accessibility.settings",
+    "package.query"
+  ],
+  "widgets": [
+    {
+      "id": "favorite_services",
+      "title": "无障碍收藏",
+      "value": "动态小部件",
+      "subtitle": "插件运行时会显示收藏服务数量和自动启用状态。"
+    }
+  ]
+}

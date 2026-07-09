@@ -1,0 +1,34 @@
+package com.example.shizukuaccessibilitygrant.plugins.accessibility;
+
+import com.example.shizukuaccessibilitygrant.plugin.api.PluginPermissionCatalog;
+import com.example.shizukuaccessibilitygrant.plugin.model.ImportedPluginDescriptor;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+
+public final class AccessibilityGrantPluginDescriptor {
+    public static final String ID = "accessibility_grant";
+
+    private AccessibilityGrantPluginDescriptor() {
+    }
+
+    public static ImportedPluginDescriptor create() {
+        LinkedHashSet<String> permissions = new LinkedHashSet<>();
+        permissions.add(PluginPermissionCatalog.SHIZUKU);
+        permissions.add(PluginPermissionCatalog.SHELL_EXEC);
+        permissions.add(PluginPermissionCatalog.ACCESSIBILITY_SETTINGS);
+        permissions.add(PluginPermissionCatalog.PACKAGE_QUERY);
+        return new ImportedPluginDescriptor(
+                ID,
+                "无障碍授权",
+                "通过 Shizuku 启用或停用已安装应用的无障碍服务。",
+                "1.0",
+                "Android Tool Suite",
+                "1",
+                "com.example.shizukuaccessibilitygrant.plugins.accessibility.AccessibilityGrantPlugin",
+                "",
+                permissions,
+                new LinkedHashSet<>(),
+                Collections.emptyList()
+        );
+    }
+}

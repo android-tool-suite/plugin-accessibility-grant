@@ -1,0 +1,35 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.example.shizukuaccessibilitygrant.plugin.accessibility"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.example.shizukuaccessibilitygrant.plugin.accessibility"
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    compileOnly project(":plugin-sdk")
+}
+
+tasks.register("packagePlugin", Zip) {
+    dependsOn "assembleDebug"
+    archiveFileName = "accessibility-grant.atsplugin"
+    destinationDirectory = layout.buildDirectory.dir("outputs/atsplugin")
+    from("manifest.json")
+    from(layout.buildDirectory.file("outputs/apk/debug/accessibility-grant-debug.apk")) {
+        rename { "plugin.apk" }
+    }
+}
