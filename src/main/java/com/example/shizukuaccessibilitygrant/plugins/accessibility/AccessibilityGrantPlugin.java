@@ -108,6 +108,11 @@ public final class AccessibilityGrantPlugin implements ToolPlugin {
     }
 
     @Override
+    public Set<String> dependencies() {
+        return descriptor.dependencies;
+    }
+
+    @Override
     public List<HomeWidget> createHomeWidgets(Activity activity, PluginHost host) {
         return Collections.singletonList(new HomeWidget() {
             @Override

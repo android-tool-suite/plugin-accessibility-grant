@@ -15,6 +15,9 @@
     "accessibility.settings",
     "package.query"
   ],
+  "dependencies": [
+    "shizuku_auth"
+  ],
   "widgets": [
     {
       "id": "favorite_services",

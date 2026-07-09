@@ -17,6 +17,8 @@ public final class AccessibilityGrantPluginDescriptor {
         permissions.add(PluginPermissionCatalog.SHELL_EXEC);
         permissions.add(PluginPermissionCatalog.ACCESSIBILITY_SETTINGS);
         permissions.add(PluginPermissionCatalog.PACKAGE_QUERY);
+        LinkedHashSet<String> dependencies = new LinkedHashSet<>();
+        dependencies.add("shizuku_auth");
         return new ImportedPluginDescriptor(
                 ID,
                 "无障碍授权",
@@ -28,6 +30,7 @@ public final class AccessibilityGrantPluginDescriptor {
                 "",
                 permissions,
                 new LinkedHashSet<>(),
+                dependencies,
                 Collections.emptyList()
         );
     }
