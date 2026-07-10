@@ -98,6 +98,11 @@ public final class AccessibilityGrantPlugin implements ToolPlugin {
     }
 
     @Override
+    public String version() {
+        return descriptor.version;
+    }
+
+    @Override
     public boolean removable() {
         return true;
     }
