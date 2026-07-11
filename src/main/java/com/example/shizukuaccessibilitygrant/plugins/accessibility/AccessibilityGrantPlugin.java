@@ -65,7 +65,6 @@ public final class AccessibilityGrantPlugin implements ToolPlugin {
     private Set<String> favoriteComponents = new LinkedHashSet<>();
     private List<AccessibilityServiceEntry> allServices = new ArrayList<>();
     private LinearLayout serviceList;
-    private Button permissionButton;
     private Button refreshButton;
     private EditText searchBox;
     private CheckBox favoritesOnlyCheckBox;
@@ -133,6 +132,14 @@ public final class AccessibilityGrantPlugin implements ToolPlugin {
             @Override
             public String pluginId() {
                 return AccessibilityGrantPlugin.this.id();
+            }
+
+            @Override
+            public List<com.example.shizukuaccessibilitygrant.plugin.api.HomeWidgetSize> supportedSizes() {
+                return java.util.Arrays.asList(
+                        new com.example.shizukuaccessibilitygrant.plugin.api.HomeWidgetSize(2, 2),
+                        new com.example.shizukuaccessibilitygrant.plugin.api.HomeWidgetSize(4, 2)
+                );
             }
 
             @Override
@@ -219,18 +226,11 @@ public final class AccessibilityGrantPlugin implements ToolPlugin {
         LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(-1, -2);
         actionsParams.topMargin = gap;
 
-        permissionButton = new Button(activity);
-        permissionButton.setText("授权 Shizuku");
-        UiKit.stylePrimaryButton(permissionButton);
-        permissionButton.setOnClickListener(v -> host.requestShizukuPermission());
-        actions.addView(permissionButton, new LinearLayout.LayoutParams(0, dp(46), 1));
-
         refreshButton = new Button(activity);
         refreshButton.setText("刷新");
-        UiKit.styleSecondaryButton(refreshButton);
+        UiKit.stylePrimaryButton(refreshButton);
         refreshButton.setOnClickListener(v -> refreshState());
-        LinearLayout.LayoutParams refreshParams = new LinearLayout.LayoutParams(0, dp(46), 1);
-        refreshParams.leftMargin = gap;
+        LinearLayout.LayoutParams refreshParams = new LinearLayout.LayoutParams(-1, dp(46));
         actions.addView(refreshButton, refreshParams);
         root.addView(actions, actionsParams);
 
@@ -311,7 +311,6 @@ public final class AccessibilityGrantPlugin implements ToolPlugin {
             return;
         }
         if (!hasRequiredPluginPermissions()) {
-            UiKit.setEnabledVisual(permissionButton, false);
             UiKit.setEnabledVisual(refreshButton, false);
             serviceList.removeAllViews();
             addPermissionMessage("插件权限未授予。请到“插件管理”授予 Shizuku、执行 Shell、修改无障碍设置和读取应用列表权限。");
@@ -321,7 +320,6 @@ public final class AccessibilityGrantPlugin implements ToolPlugin {
         boolean binderAlive = host.isShizukuReady();
         boolean granted = binderAlive && host.hasShizukuPermission();
 
-        UiKit.setEnabledVisual(permissionButton, binderAlive && !granted);
         UiKit.setEnabledVisual(refreshButton, granted);
 
         if (!binderAlive) {
@@ -332,7 +330,7 @@ public final class AccessibilityGrantPlugin implements ToolPlugin {
 
         if (!granted) {
             serviceList.removeAllViews();
-            addMessage("Shizuku 已连接，尚未授权本工具合集。");
+            addMessage("Shizuku 已连接，但宿主尚未获得授权。请到“Shizuku 授权”工具完成授权后再刷新。");
             return;
         }
 
