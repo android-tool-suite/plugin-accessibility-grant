@@ -1,6 +1,6 @@
-package com.example.shizukuaccessibilitygrant.plugins.accessibility;
+package com.androidtoolsuite.app.plugins.accessibility;
 
-import com.example.shizukuaccessibilitygrant.plugin.model.ImportedPluginDescriptor;
+import com.androidtoolsuite.app.plugin.model.ImportedPluginDescriptor;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 
@@ -20,7 +20,7 @@ public final class AccessibilityGrantPluginDescriptor {
                 "1.0",
                 "Android Tool Suite",
                 "1",
-                "com.example.shizukuaccessibilitygrant.plugins.accessibility.AccessibilityGrantPlugin",
+                "com.androidtoolsuite.app.plugins.accessibility.AccessibilityGrantPlugin",
                 "",
                 dependencies,
                 Collections.emptyList()

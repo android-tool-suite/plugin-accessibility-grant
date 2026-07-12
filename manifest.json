@@ -7,7 +7,7 @@
     "description": "通过 Shizuku 启用或停用已安装应用的无障碍服务。",
     "version": "1.0",
     "author": "Android Tool Suite",
-    "entryClass": "com.example.shizukuaccessibilitygrant.plugins.accessibility.AccessibilityGrantPlugin"
+    "entryClass": "com.androidtoolsuite.app.plugins.accessibility.AccessibilityGrantPlugin"
   },
   "dependencies": [
     "shizuku_auth"

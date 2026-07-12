@@ -1,9 +1,9 @@
-package com.example.shizukuaccessibilitygrant.plugins.accessibility;
+package com.androidtoolsuite.app.plugins.accessibility;
 
-import com.example.shizukuaccessibilitygrant.plugin.api.HomeWidget;
-import com.example.shizukuaccessibilitygrant.plugin.api.PluginHost;
-import com.example.shizukuaccessibilitygrant.plugin.api.ToolPlugin;
-import com.example.shizukuaccessibilitygrant.plugin.model.ImportedPluginDescriptor;
+import com.androidtoolsuite.app.plugin.api.HomeWidget;
+import com.androidtoolsuite.app.plugin.api.PluginHost;
+import com.androidtoolsuite.app.plugin.api.ToolPlugin;
+import com.androidtoolsuite.app.plugin.model.ImportedPluginDescriptor;
 import android.Manifest;
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
@@ -31,7 +31,7 @@ import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-import com.example.shizukuaccessibilitygrant.ui.UiKit;
+import com.androidtoolsuite.app.ui.UiKit;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -129,10 +129,10 @@ public final class AccessibilityGrantPlugin implements ToolPlugin {
             }
 
             @Override
-            public List<com.example.shizukuaccessibilitygrant.plugin.api.HomeWidgetSize> supportedSizes() {
+            public List<com.androidtoolsuite.app.plugin.api.HomeWidgetSize> supportedSizes() {
                 return java.util.Arrays.asList(
-                        new com.example.shizukuaccessibilitygrant.plugin.api.HomeWidgetSize(2, 2),
-                        new com.example.shizukuaccessibilitygrant.plugin.api.HomeWidgetSize(4, 2)
+                        new com.androidtoolsuite.app.plugin.api.HomeWidgetSize(2, 2),
+                        new com.androidtoolsuite.app.plugin.api.HomeWidgetSize(4, 2)
                 );
             }
 

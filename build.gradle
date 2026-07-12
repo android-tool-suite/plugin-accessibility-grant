@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace "com.example.shizukuaccessibilitygrant.plugin.accessibility"
+    namespace "com.androidtoolsuite.app.plugin.accessibility"
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.example.shizukuaccessibilitygrant.plugin.accessibility"
+        applicationId "com.androidtoolsuite.app.plugin.accessibility"
         minSdk 24
         targetSdk 35
         versionCode 1
