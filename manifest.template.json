@@ -5,7 +5,7 @@
     "id": "accessibility_grant",
     "title": "无障碍授权",
     "description": "通过 Shizuku 启用或停用已安装应用的无障碍服务。",
-    "version": "1.0",
+    "version": "@VERSION_NAME@",
     "author": "Android Tool Suite",
     "entryClass": "com.androidtoolsuite.app.plugins.accessibility.AccessibilityGrantPlugin"
   },

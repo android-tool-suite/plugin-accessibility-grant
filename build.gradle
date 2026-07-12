@@ -4,6 +4,8 @@ plugins {
     id "org.jetbrains.kotlin.plugin.compose"
 }
 
+def pluginVersionName = "1.0"
+
 android {
     namespace "com.androidtoolsuite.app.plugin.accessibility"
     compileSdk 35
@@ -13,7 +15,7 @@ android {
         minSdk 24
         targetSdk 35
         versionCode 1
-        versionName "1.0"
+        versionName pluginVersionName
     }
 
     compileOptions {
@@ -22,6 +24,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig true
         compose true
     }
 }
@@ -34,11 +37,20 @@ dependencies {
     compileOnly project(":plugin-sdk")
 }
 
+def generatePluginManifest = tasks.register("generatePluginManifest", Copy) {
+    inputs.property("pluginVersionName", pluginVersionName)
+    from("manifest.template.json") {
+        filter { line -> line.replace("@VERSION_NAME@", pluginVersionName) }
+        rename { "manifest.json" }
+    }
+    into layout.buildDirectory.dir("generated/pluginManifest")
+}
+
 tasks.register("packagePlugin", Zip) {
-    dependsOn "assembleDebug"
+    dependsOn "assembleDebug", generatePluginManifest
     archiveFileName = "accessibility-grant.atsplugin"
     destinationDirectory = layout.buildDirectory.dir("outputs/atsplugin")
-    from("manifest.json")
+    from(generatePluginManifest)
     from(layout.buildDirectory.file("outputs/apk/debug/accessibility-grant-debug.apk")) {
         rename { "plugin.apk" }
     }

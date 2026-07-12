@@ -1,5 +1,6 @@
 package com.androidtoolsuite.app.plugins.accessibility;
 
+import com.androidtoolsuite.app.plugin.accessibility.BuildConfig;
 import com.androidtoolsuite.app.plugin.model.ImportedPluginDescriptor;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -17,7 +18,7 @@ public final class AccessibilityGrantPluginDescriptor {
                 ID,
                 "无障碍授权",
                 "通过 Shizuku 启用或停用已安装应用的无障碍服务。",
-                "1.0",
+                BuildConfig.VERSION_NAME,
                 "Android Tool Suite",
                 "1",
                 "com.androidtoolsuite.app.plugins.accessibility.AccessibilityGrantPlugin",
