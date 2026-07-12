@@ -1,6 +1,5 @@
 package com.example.shizukuaccessibilitygrant.plugins.accessibility;
 
-import com.example.shizukuaccessibilitygrant.plugin.api.PluginPermissionCatalog;
 import com.example.shizukuaccessibilitygrant.plugin.model.ImportedPluginDescriptor;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -12,11 +11,6 @@ public final class AccessibilityGrantPluginDescriptor {
     }
 
     public static ImportedPluginDescriptor create() {
-        LinkedHashSet<String> permissions = new LinkedHashSet<>();
-        permissions.add(PluginPermissionCatalog.SHIZUKU);
-        permissions.add(PluginPermissionCatalog.SHELL_EXEC);
-        permissions.add(PluginPermissionCatalog.ACCESSIBILITY_SETTINGS);
-        permissions.add(PluginPermissionCatalog.PACKAGE_QUERY);
         LinkedHashSet<String> dependencies = new LinkedHashSet<>();
         dependencies.add("shizuku_auth");
         return new ImportedPluginDescriptor(
@@ -28,8 +22,6 @@ public final class AccessibilityGrantPluginDescriptor {
                 "1",
                 "com.example.shizukuaccessibilitygrant.plugins.accessibility.AccessibilityGrantPlugin",
                 "",
-                permissions,
-                new LinkedHashSet<>(),
                 dependencies,
                 Collections.emptyList()
         );

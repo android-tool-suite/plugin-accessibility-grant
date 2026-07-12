@@ -2,7 +2,6 @@ package com.example.shizukuaccessibilitygrant.plugins.accessibility;
 
 import com.example.shizukuaccessibilitygrant.plugin.api.HomeWidget;
 import com.example.shizukuaccessibilitygrant.plugin.api.PluginHost;
-import com.example.shizukuaccessibilitygrant.plugin.api.PluginPermissionCatalog;
 import com.example.shizukuaccessibilitygrant.plugin.api.ToolPlugin;
 import com.example.shizukuaccessibilitygrant.plugin.model.ImportedPluginDescriptor;
 import android.Manifest;
@@ -104,11 +103,6 @@ public final class AccessibilityGrantPlugin implements ToolPlugin {
     @Override
     public boolean removable() {
         return true;
-    }
-
-    @Override
-    public Set<String> requestedPermissions() {
-        return descriptor.requestedPermissions;
     }
 
     @Override
@@ -310,13 +304,6 @@ public final class AccessibilityGrantPlugin implements ToolPlugin {
         if (serviceList == null || host == null) {
             return;
         }
-        if (!hasRequiredPluginPermissions()) {
-            UiKit.setEnabledVisual(refreshButton, false);
-            serviceList.removeAllViews();
-            addPermissionMessage("插件权限未授予。请到“插件管理”授予 Shizuku、执行 Shell、修改无障碍设置和读取应用列表权限。");
-            return;
-        }
-
         boolean binderAlive = host.isShizukuReady();
         boolean granted = binderAlive && host.hasShizukuPermission();
 
@@ -342,24 +329,6 @@ public final class AccessibilityGrantPlugin implements ToolPlugin {
         }
 
         loadAccessibilityServices();
-    }
-
-    private boolean hasRequiredPluginPermissions() {
-        return host.hasImportedPluginPermission(id(), PluginPermissionCatalog.SHIZUKU)
-                && host.hasImportedPluginPermission(id(), PluginPermissionCatalog.SHELL_EXEC)
-                && host.hasImportedPluginPermission(id(), PluginPermissionCatalog.ACCESSIBILITY_SETTINGS)
-                && host.hasImportedPluginPermission(id(), PluginPermissionCatalog.PACKAGE_QUERY);
-    }
-
-    private void addPermissionMessage(String message) {
-        TextView textView = new TextView(activity);
-        textView.setText(message + "\n\n当前插件作为外部插件运行，宿主负责获取 Shizuku 权限，插件只有获得授权后才能调用宿主的 Shizuku 能力。");
-        textView.setTextColor(UiKit.COLOR_WARN);
-        textView.setTextSize(14);
-        textView.setGravity(Gravity.CENTER);
-        textView.setPadding(dp(14), dp(14), dp(14), dp(14));
-        textView.setBackground(UiKit.rounded(0xFFFFF7ED, 8, activity));
-        serviceList.addView(textView, new LinearLayout.LayoutParams(-1, -2));
     }
 
     private void loadAccessibilityServices() {

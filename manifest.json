@@ -9,22 +9,7 @@
     "author": "Android Tool Suite",
     "entryClass": "com.example.shizukuaccessibilitygrant.plugins.accessibility.AccessibilityGrantPlugin"
   },
-  "permissions": [
-    "shizuku",
-    "shell.exec",
-    "accessibility.settings",
-    "package.query"
-  ],
   "dependencies": [
     "shizuku_auth"
-  ],
-  "widgets": [
-    {
-      "id": "favorite_services",
-      "title": "无障碍收藏",
-      "value": "动态小部件",
-      "subtitle": "插件运行时会显示收藏服务数量和自动启用状态。"
-      ,"sizes": ["2x2", "4x2"]
-    }
   ]
 }
