@@ -1,0 +1,11 @@
+/.gradle/
+/.kotlin/
+/build/
+/artifacts/
+/local.properties
+*.iml
+.idea/
+.vscode/
+.agents/
+.codex/
+.github/modernize/

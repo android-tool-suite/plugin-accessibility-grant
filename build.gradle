@@ -5,6 +5,7 @@ plugins {
 }
 
 def pluginVersionName = "1.0"
+def pluginSdkVersion = providers.gradleProperty("atsPluginSdkVersion").get()
 
 android {
     namespace "com.androidtoolsuite.app.plugin.accessibility"
@@ -34,7 +35,7 @@ kotlin {
 }
 
 dependencies {
-    compileOnly project(":plugin-sdk")
+    compileOnly "com.androidtoolsuite:plugin-sdk:$pluginSdkVersion"
 }
 
 def generatePluginManifest = tasks.register("generatePluginManifest", Copy) {
@@ -51,7 +52,17 @@ tasks.register("packagePlugin", Zip) {
     archiveFileName = "accessibility-grant.atsplugin"
     destinationDirectory = layout.buildDirectory.dir("outputs/atsplugin")
     from(generatePluginManifest)
-    from(layout.buildDirectory.file("outputs/apk/debug/accessibility-grant-debug.apk")) {
+    from(layout.buildDirectory.file("outputs/apk/debug/android-tool-suite-accessibility-grant-debug.apk")) {
         rename { "plugin.apk" }
+    }
+}
+
+tasks.register("collectArtifacts", Copy) {
+    dependsOn "packagePlugin"
+    group = "distribution"
+    description = "Collects the accessibility plugin package in the root artifacts directory."
+    into layout.projectDirectory.dir("artifacts")
+    from(layout.buildDirectory.dir("outputs/atsplugin")) {
+        include "accessibility-grant.atsplugin"
     }
 }
