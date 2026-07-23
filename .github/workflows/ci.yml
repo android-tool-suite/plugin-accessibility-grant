@@ -1,0 +1,64 @@
+name: Component CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout plugin
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
+      - name: Read SDK version
+        id: sdk
+        shell: pwsh
+        run: |
+          $line = Select-String -Path .\gradle.properties -Pattern '^atsPluginSdkVersion=(.+)$'
+          if ($null -eq $line) { throw 'atsPluginSdkVersion is missing' }
+          "version=$($line.Matches[0].Groups[1].Value.Trim())" >> $env:GITHUB_OUTPUT
+
+      - name: Checkout matching plugin SDK source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: android-tool-suite/app
+          ref: plugin-sdk-v${{ steps.sdk.outputs.version }}
+          path: _sdk-source
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@90ddb51e90a5fd9ba75f40cf85156b7b41bf76a3
+        with:
+          gradle-version: '8.9'
+
+      - name: Publish matching SDK to temporary Maven repository
+        shell: pwsh
+        run: |
+          $repository = Join-Path $env:RUNNER_TEMP 'ats-sdk-repository'
+          gradle -p .\_sdk-source :plugin-sdk:publishReleasePublicationToPluginSdkRepository "-PpluginSdkRepository=$repository"
+          if ($LASTEXITCODE -ne 0) { throw 'SDK publication failed' }
+          "ATS_SDK_REPOSITORY=$repository" >> $env:GITHUB_ENV
+
+      - name: Build plugin
+        shell: pwsh
+        run: gradle clean collectArtifacts
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: accessibility-grant-${{ github.sha }}
+          path: artifacts/accessibility-grant.atsplugin
+          if-no-files-found: error
