@@ -32,3 +32,9 @@ gradle -PatsSdkRepository=..\..\app\plugin-sdk\build\repository clean collectArt
 ```
 
 输出文件为 `artifacts/accessibility-grant.atsplugin`。
+
+## 发布通道
+
+- 推送 `main` 并通过 CI 后，工作流更新滚动 `debug` 预发布，宿主调试仓库随后可自动发现该构建。
+- 推送 `v<versionName>` 标签后，工作流构建并发布正式 Release。
+- 两种发布都会生成 `release-metadata.json` 和 `SHA256SUMS.txt`，并通过 `REGISTRY_DISPATCH_TOKEN` 事件通知插件索引更新。

@@ -5,9 +5,14 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: component-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -62,3 +67,27 @@ jobs:
           name: accessibility-grant-${{ github.sha }}
           path: artifacts/accessibility-grant.atsplugin
           if-no-files-found: error
+
+      - name: Prepare debug release assets
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        shell: pwsh
+        run: |
+          .\.github\scripts\prepare-release.ps1 `
+            -ArtifactPath .\artifacts\accessibility-grant.atsplugin `
+            -OutputDirectory .\debug-dist `
+            -Channel debug `
+            -CommitSha '${{ github.sha }}'
+
+      - name: Publish rolling debug release
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .\.github\scripts\publish-debug.ps1 -AssetDirectory .\debug-dist -Title 'Accessibility Grant Debug'
+
+      - name: Notify plugin registry
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.REGISTRY_DISPATCH_TOKEN }}
+        run: .\.github\scripts\dispatch-registry.ps1 -Channel debug -Reference debug

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Version tag to validate, for example v1.2.0
+        description: Version tag to validate, for example v1.3.0
         required: true
         type: string
 
@@ -93,3 +93,10 @@ jobs:
             --title 'Accessibility Grant ${{ github.ref_name }}' `
             --generate-notes
           gh release edit '${{ github.ref_name }}' --draft=false --latest
+
+      - name: Notify plugin registry
+        if: github.event_name == 'push'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.REGISTRY_DISPATCH_TOKEN }}
+        run: .\.github\scripts\dispatch-registry.ps1 -Channel release -Reference '${{ github.ref_name }}'
