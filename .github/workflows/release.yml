@@ -94,9 +94,20 @@ jobs:
             --generate-notes
           gh release edit '${{ github.ref_name }}' --draft=false --latest
 
+      - name: Create registry app token
+        id: registry-app-token
+        if: github.event_name == 'push'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        with:
+          client-id: ${{ vars.REGISTRY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.REGISTRY_APP_PRIVATE_KEY }}
+          owner: android-tool-suite
+          repositories: plugin-registry
+          permission-contents: write
+
       - name: Notify plugin registry
         if: github.event_name == 'push'
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.REGISTRY_DISPATCH_TOKEN }}
+          GH_TOKEN: ${{ steps.registry-app-token.outputs.token }}
         run: .\.github\scripts\dispatch-registry.ps1 -Channel release -Reference '${{ github.ref_name }}'
