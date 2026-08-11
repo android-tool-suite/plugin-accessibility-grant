@@ -29,6 +29,20 @@ finally {
 
 $plugin = $manifest.plugin
 if ($manifest.formatVersion -ne '2') { throw 'Release 插件必须使用 formatVersion 2' }
+$compatibilityPath = Join-Path $repositoryRoot 'data-compatibility.json'
+if (-not (Test-Path -LiteralPath $compatibilityPath -PathType Leaf)) {
+    throw '缺少 data-compatibility.json'
+}
+$compatibility = Get-Content -LiteralPath $compatibilityPath -Raw -Encoding utf8 | ConvertFrom-Json
+$dataFormatVersion = [int]$compatibility.dataFormatVersion
+$minReadableDataFormatVersion = [int]$compatibility.minReadableDataFormatVersion
+$maxReadableDataFormatVersion = [int]$compatibility.maxReadableDataFormatVersion
+if ($compatibility.schemaVersion -ne 1 -or
+    $minReadableDataFormatVersion -le 0 -or
+    $minReadableDataFormatVersion -gt $dataFormatVersion -or
+    $dataFormatVersion -gt $maxReadableDataFormatVersion) {
+    throw 'data-compatibility.json 中的数据兼容范围无效'
+}
 if ($Channel -eq 'release') {
     if ($ExpectedTag -ne "v$($plugin.version)") {
         throw "标签 $ExpectedTag 与插件版本 $($plugin.version) 不一致"
@@ -66,6 +80,12 @@ $metadata = [ordered]@{
     minHostVersionCode = [int]$plugin.minHostVersionCode
     sdkVersion = $plugin.sdkVersion
     dependencies = @($manifest.dependencies)
+    dataCompatibility = [ordered]@{
+        schemaVersion = 1
+        dataFormatVersion = $dataFormatVersion
+        minReadableDataFormatVersion = $minReadableDataFormatVersion
+        maxReadableDataFormatVersion = $maxReadableDataFormatVersion
+    }
     artifactName = $targetFile.Name
 }
 if ($Channel -eq 'debug') {
