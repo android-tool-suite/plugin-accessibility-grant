@@ -85,7 +85,7 @@ class AccessibilityGrantPlugin(
         updateState { copy(connection = connection) }
         when (connection) {
             AccessibilityConnection.DISCONNECTED -> showMessage("请先启动 Shizuku，再返回此页刷新连接状态。")
-            AccessibilityConnection.UNAUTHORIZED -> showMessage("请先在“Shizuku 授权”工具中批准宿主权限。")
+            AccessibilityConnection.UNAUTHORIZED -> showMessage("请先在“Shizuku 授权”工具中批准本应用的权限。")
             AccessibilityConnection.CONNECTING -> {
                 showMessage("正在连接 Shizuku UserService…")
                 currentHost.ensureShellService()
@@ -226,7 +226,8 @@ class AccessibilityGrantPlugin(
         requireHost().runShellCommand(SETTINGS_COMMAND, "put", "secure", ACCESSIBILITY_ENABLED, if (services.isEmpty()) "0" else "1")
     }
 
-    private fun requireHost(): PluginHost = host ?: throw IOException("插件宿主尚未初始化")
+    // 这条信息会经 safeMessage(...) 出现在界面上，所以用用户能理解的说法，不用「宿主」这种架构词。
+    private fun requireHost(): PluginHost = host ?: throw IOException("插件尚未初始化完成，请退出重进此工具")
     private fun safeMessage(error: Throwable): String = error.message?.take(240) ?: error.javaClass.simpleName
     private fun postState(transform: AccessibilityGrantUiState.() -> AccessibilityGrantUiState) {
         activity?.runOnUiThread { updateState(transform) }

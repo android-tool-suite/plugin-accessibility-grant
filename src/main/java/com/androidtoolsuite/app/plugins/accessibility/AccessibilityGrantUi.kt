@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccessibilityNew
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -44,7 +43,10 @@ import com.androidtoolsuite.app.ui.EmptyState
 import com.androidtoolsuite.app.ui.Notice
 import com.androidtoolsuite.app.ui.SectionHeader
 import com.androidtoolsuite.app.ui.SuiteCard
-import com.androidtoolsuite.app.ui.SuiteColors
+import com.androidtoolsuite.app.ui.SuiteSemantic
+import com.androidtoolsuite.app.ui.SuiteShapes
+import com.androidtoolsuite.app.ui.SuiteSpacing
+import com.androidtoolsuite.app.ui.SuiteStatusChip
 
 @Composable
 internal fun AccessibilityGrantScreen(plugin: AccessibilityGrantPlugin) {
@@ -124,7 +126,7 @@ private fun ConnectionCard(connection: AccessibilityConnection) {
     val title = connectionTitle(connection)
     val detail = when (connection) {
         AccessibilityConnection.DISCONNECTED -> "请先在设备上启动 Shizuku"
-        AccessibilityConnection.UNAUTHORIZED -> "Shizuku 已连接，等待宿主获得授权"
+        AccessibilityConnection.UNAUTHORIZED -> "Shizuku 已连接，等待本应用获得授权"
         AccessibilityConnection.CONNECTING -> "授权已就绪，正在连接 UserService"
         AccessibilityConnection.READY -> "UserService 已连接，可以管理无障碍服务"
     }
@@ -133,7 +135,7 @@ private fun ConnectionCard(connection: AccessibilityConnection) {
             Icon(
                 if (ready) Icons.Rounded.CheckCircle else Icons.Rounded.CloudOff,
                 contentDescription = null,
-                tint = if (ready) SuiteColors.Success else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = if (ready) SuiteSemantic.current.success else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Column {
                 Text(title, style = MaterialTheme.typography.titleLarge)
@@ -146,13 +148,13 @@ private fun ConnectionCard(connection: AccessibilityConnection) {
 @Composable
 private fun ServiceCard(service: AccessibilityServiceItem, plugin: AccessibilityGrantPlugin, loading: Boolean) {
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = SuiteShapes.Card,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
-                    Box(Modifier.padding(10.dp), contentAlignment = Alignment.Center) {
+        Column(Modifier.fillMaxWidth().padding(SuiteSpacing.lg), verticalArrangement = Arrangement.spacedBy(SuiteSpacing.sm)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(SuiteSpacing.md)) {
+                Surface(shape = SuiteShapes.Inner, color = MaterialTheme.colorScheme.secondaryContainer) {
+                    Box(Modifier.padding(SuiteSpacing.sm + 2.dp), contentAlignment = Alignment.Center) {
                         Icon(Icons.Rounded.AccessibilityNew, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
                     }
                 }
@@ -169,18 +171,11 @@ private fun ServiceCard(service: AccessibilityServiceItem, plugin: Accessibility
                 }
             }
             Text(service.component, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (service.enabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                ) {
-                    Text(
-                        if (service.enabled) "已启用" else "未启用",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (service.enabled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(SuiteSpacing.md)) {
+                SuiteStatusChip(
+                    if (service.enabled) "已启用" else "未启用",
+                    positive = service.enabled,
+                )
                 Spacer(Modifier.weight(1f))
                 if (service.enabled) {
                     OutlinedButton(onClick = { plugin.setServiceEnabled(service.component, false) }, enabled = !loading) { Text("停用") }
@@ -211,7 +206,7 @@ internal fun AccessibilityGrantHomeWidget(favoriteCount: Int, autoGrant: Boolean
 
 private fun connectionTitle(connection: AccessibilityConnection): String = when (connection) {
     AccessibilityConnection.DISCONNECTED -> "Shizuku 未连接"
-    AccessibilityConnection.UNAUTHORIZED -> "等待宿主授权"
+    AccessibilityConnection.UNAUTHORIZED -> "等待 Shizuku 授权"
     AccessibilityConnection.CONNECTING -> "正在连接服务"
     AccessibilityConnection.READY -> "运行正常"
 }
