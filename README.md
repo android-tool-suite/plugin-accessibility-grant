@@ -35,6 +35,6 @@ gradle -PatsSdkRepository=..\..\app\plugin-sdk\build\repository clean collectArt
 
 ## 发布通道
 
-- 推送 `main` 并通过 CI 后，工作流更新滚动 `debug` 预发布，宿主调试仓库随后可自动发现该构建。
+- 推送 `main` 并通过 CI 后，工作流保留 `debug-<完整提交 SHA>` 历史快照并更新滚动 `debug` 预发布；宿主调试仓库自动发现最新构建，Pages 发布中心可选择历史构建。
 - 推送 `v<versionName>` 标签后，工作流构建并发布正式 Release。
 - 两种发布都会生成 `release-metadata.json` 和 `SHA256SUMS.txt`，并通过 GitHub App 短时令牌发送事件通知插件索引更新。

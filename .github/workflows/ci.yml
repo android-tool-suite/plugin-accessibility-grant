@@ -78,7 +78,7 @@ jobs:
             -Channel debug `
             -CommitSha '${{ github.sha }}'
 
-      - name: Publish rolling debug release
+      - name: Publish rolling and historical debug releases
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         shell: pwsh
         env:
