@@ -38,7 +38,7 @@ $dataFormatVersion = [int]$compatibility.dataFormatVersion
 $minReadableDataFormatVersion = [int]$compatibility.minReadableDataFormatVersion
 $maxReadableDataFormatVersion = [int]$compatibility.maxReadableDataFormatVersion
 if ($compatibility.schemaVersion -ne 1 -or
-    $minReadableDataFormatVersion -le 0 -or
+    $minReadableDataFormatVersion -lt 0 -or
     $minReadableDataFormatVersion -gt $dataFormatVersion -or
     $dataFormatVersion -gt $maxReadableDataFormatVersion) {
     throw 'data-compatibility.json 中的数据兼容范围无效'
