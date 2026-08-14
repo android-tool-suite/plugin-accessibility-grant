@@ -19,10 +19,17 @@ import com.androidtoolsuite.app.plugin.api.HomeWidget
 import com.androidtoolsuite.app.plugin.api.HomeWidgetSize
 import com.androidtoolsuite.app.plugin.api.PluginHost
 import com.androidtoolsuite.app.plugin.api.ToolPlugin
+import com.androidtoolsuite.app.plugin.migration.DatasetCategory
+import com.androidtoolsuite.app.plugin.migration.DatasetRestoreMode
+import com.androidtoolsuite.app.plugin.migration.LegacyDataBridge
+import com.androidtoolsuite.app.plugin.migration.LegacyDatasetDescriptor
 import com.androidtoolsuite.app.plugin.model.ImportedPluginDescriptor
 import com.androidtoolsuite.app.ui.composePluginView
 import java.io.IOException
+import java.io.OutputStream
 import java.util.concurrent.Executors
+import org.json.JSONArray
+import org.json.JSONObject
 
 class AccessibilityGrantPlugin(
     private val descriptor: ImportedPluginDescriptor = AccessibilityGrantPluginDescriptor.create(),
@@ -58,6 +65,36 @@ class AccessibilityGrantPlugin(
             }
         },
     )
+
+    override fun legacyDataBridge(): LegacyDataBridge = object : LegacyDataBridge {
+        override fun datasets(activity: Activity): List<LegacyDatasetDescriptor> {
+            val prefs = activity.getSharedPreferences(PREFS_NAME, Activity.MODE_PRIVATE)
+            val estimatedSize = prefs.getStringSet(PREF_FAVORITES, emptySet()).orEmpty()
+                .sumOf { it.toByteArray().size.toLong() } + 32L
+            return listOf(
+                LegacyDatasetDescriptor(
+                    "accessibility-settings",
+                    "收藏与自动授权设置",
+                    DatasetCategory.SETTINGS,
+                    estimatedSize,
+                    1,
+                    false,
+                    DatasetRestoreMode.REPLACE,
+                ),
+            )
+        }
+
+        override fun exportDataset(activity: Activity, datasetId: String, output: OutputStream) {
+            require(datasetId == "accessibility-settings") { "未知 Dataset：$datasetId" }
+            val prefs = activity.getSharedPreferences(PREFS_NAME, Activity.MODE_PRIVATE)
+            val favorites = prefs.getStringSet(PREF_FAVORITES, emptySet()).orEmpty().sorted()
+            val root = JSONObject()
+                .put("formatVersion", 1)
+                .put("favorites", JSONArray(favorites))
+                .put("autoGrant", prefs.getBoolean(PREF_AUTO_GRANT, false))
+            output.write(root.toString().toByteArray(Charsets.UTF_8))
+        }
+    }
 
     override fun createView(activity: Activity, host: PluginHost): View {
         if (this.activity !== activity || rootView == null) {
