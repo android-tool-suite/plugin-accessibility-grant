@@ -80,7 +80,7 @@ class AccessibilityGrantPlugin(
                     estimatedSize,
                     1,
                     false,
-                    DatasetRestoreMode.REPLACE,
+                    listOf(DatasetRestoreMode.REPLACE, DatasetRestoreMode.MERGE),
                 ),
             )
         }
@@ -99,21 +99,44 @@ class AccessibilityGrantPlugin(
         override fun supportsImport(datasetId: String, dataFormatVersion: Int): Boolean =
             datasetId == "accessibility-settings" && dataFormatVersion == 1
 
+        override fun hasData(activity: Activity, datasetId: String): Boolean {
+            require(datasetId == "accessibility-settings") { "未知 Dataset：$datasetId" }
+            return activity.getSharedPreferences(PREFS_NAME, Activity.MODE_PRIVATE).all.isNotEmpty()
+        }
+
+        override fun supportsRestoreMode(
+            datasetId: String,
+            dataFormatVersion: Int,
+            mode: DatasetRestoreMode,
+        ): Boolean = supportsImport(datasetId, dataFormatVersion) &&
+            mode in setOf(DatasetRestoreMode.REPLACE, DatasetRestoreMode.MERGE)
+
         override fun importDataset(
             activity: Activity,
             datasetId: String,
             dataFormatVersion: Int,
+            restoreMode: DatasetRestoreMode,
             input: InputStream,
         ) {
             require(supportsImport(datasetId, dataFormatVersion)) { "不支持的无障碍设置 Dataset" }
+            require(supportsRestoreMode(datasetId, dataFormatVersion, restoreMode)) { "不支持的恢复方式" }
             val root = JSONObject(input.reader(Charsets.UTF_8).readText())
             require(root.optInt("formatVersion", 0) == dataFormatVersion) { "无障碍设置格式版本不一致" }
             val favorites = root.getJSONArray("favorites")
-            val values = (0 until favorites.length()).mapTo(linkedSetOf()) { favorites.getString(it) }
+            val incoming = (0 until favorites.length()).mapTo(linkedSetOf()) { favorites.getString(it) }
             val autoGrant = root.getBoolean("autoGrant")
             val preferences = activity.getSharedPreferences(PREFS_NAME, Activity.MODE_PRIVATE)
+            val values = if (restoreMode == DatasetRestoreMode.MERGE) {
+                LinkedHashSet(preferences.getStringSet(PREF_FAVORITES, emptySet()).orEmpty()).apply {
+                    addAll(incoming)
+                }
+            } else {
+                incoming
+            }
+            val editor = preferences.edit()
+            if (restoreMode == DatasetRestoreMode.REPLACE) editor.clear()
             check(
-                preferences.edit().clear()
+                editor
                     .putStringSet(PREF_FAVORITES, values)
                     .putBoolean(PREF_AUTO_GRANT, autoGrant)
                     .commit(),
@@ -124,6 +147,16 @@ class AccessibilityGrantPlugin(
             check(preferences.getBoolean(PREF_AUTO_GRANT, !autoGrant) == autoGrant) {
                 "无障碍自动授权设置恢复校验失败"
             }
+        }
+
+        override fun supportsDelete(datasetId: String): Boolean =
+            datasetId == "accessibility-settings"
+
+        override fun deleteDataset(activity: Activity, datasetId: String) {
+            require(supportsDelete(datasetId)) { "不支持删除的无障碍设置 Dataset" }
+            val preferences = activity.getSharedPreferences(PREFS_NAME, Activity.MODE_PRIVATE)
+            check(preferences.edit().clear().commit()) { "无法删除无障碍插件设置" }
+            check(preferences.all.isEmpty()) { "无障碍插件设置删除校验失败" }
         }
     }
 
