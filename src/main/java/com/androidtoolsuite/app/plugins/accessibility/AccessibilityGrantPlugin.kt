@@ -168,6 +168,9 @@ class AccessibilityGrantPlugin(
             favoriteComponents = LinkedHashSet(preferences?.getStringSet(PREF_FAVORITES, emptySet()).orEmpty())
             state.value = state.value.copy(autoGrant = preferences?.getBoolean(PREF_AUTO_GRANT, false) == true)
             rootView = composePluginView(activity) { AccessibilityGrantScreen(this) }
+            // The host can select the plugin before Compose asks it to create the View. In that
+            // ordering onSelected() runs before host is assigned and cannot load the first state.
+            refreshState()
         }
         return rootView!!
     }
