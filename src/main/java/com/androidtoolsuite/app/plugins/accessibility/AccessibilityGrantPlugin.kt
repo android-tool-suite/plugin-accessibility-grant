@@ -26,6 +26,7 @@ import com.androidtoolsuite.app.plugin.migration.LegacyDatasetDescriptor
 import com.androidtoolsuite.app.plugin.model.ImportedPluginDescriptor
 import com.androidtoolsuite.app.ui.composePluginView
 import java.io.IOException
+import java.io.InputStream
 import java.io.OutputStream
 import java.util.concurrent.Executors
 import org.json.JSONArray
@@ -93,6 +94,36 @@ class AccessibilityGrantPlugin(
                 .put("favorites", JSONArray(favorites))
                 .put("autoGrant", prefs.getBoolean(PREF_AUTO_GRANT, false))
             output.write(root.toString().toByteArray(Charsets.UTF_8))
+        }
+
+        override fun supportsImport(datasetId: String, dataFormatVersion: Int): Boolean =
+            datasetId == "accessibility-settings" && dataFormatVersion == 1
+
+        override fun importDataset(
+            activity: Activity,
+            datasetId: String,
+            dataFormatVersion: Int,
+            input: InputStream,
+        ) {
+            require(supportsImport(datasetId, dataFormatVersion)) { "不支持的无障碍设置 Dataset" }
+            val root = JSONObject(input.reader(Charsets.UTF_8).readText())
+            require(root.optInt("formatVersion", 0) == dataFormatVersion) { "无障碍设置格式版本不一致" }
+            val favorites = root.getJSONArray("favorites")
+            val values = (0 until favorites.length()).mapTo(linkedSetOf()) { favorites.getString(it) }
+            val autoGrant = root.getBoolean("autoGrant")
+            val preferences = activity.getSharedPreferences(PREFS_NAME, Activity.MODE_PRIVATE)
+            check(
+                preferences.edit().clear()
+                    .putStringSet(PREF_FAVORITES, values)
+                    .putBoolean(PREF_AUTO_GRANT, autoGrant)
+                    .commit(),
+            ) { "无法保存无障碍设置" }
+            check(preferences.getStringSet(PREF_FAVORITES, emptySet()).orEmpty() == values) {
+                "无障碍收藏恢复校验失败"
+            }
+            check(preferences.getBoolean(PREF_AUTO_GRANT, !autoGrant) == autoGrant) {
+                "无障碍自动授权设置恢复校验失败"
+            }
         }
     }
 

@@ -10,6 +10,8 @@ class AccessibilityLegacyFixtureTest {
     @Test fun fixturesCoverEmptyAndMultipleFavorites() {
         val empty = fixture("accessibility-settings-empty.json")
         val populated = fixture("accessibility-settings.json")
+        assertEquals(1, empty.getInt("formatVersion"))
+        assertEquals(1, populated.getInt("formatVersion"))
         assertEquals(0, empty.getJSONArray("favorites").length())
         assertFalse(empty.getBoolean("autoGrant"))
         assertTrue(populated.getJSONArray("favorites").length() > 1)
