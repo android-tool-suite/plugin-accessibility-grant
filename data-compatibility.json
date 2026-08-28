@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "dataFormatVersion": 1,
+  "dataFormatVersion": 2,
   "minReadableDataFormatVersion": 0,
-  "maxReadableDataFormatVersion": 1
+  "maxReadableDataFormatVersion": 2
 }

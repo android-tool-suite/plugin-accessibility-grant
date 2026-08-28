@@ -1,0 +1,78 @@
+{
+  "$schema": "https://android-tool-suite.test/contracts/manifest-v3.schema.json",
+  "format": "ats-plugin",
+  "formatVersion": 3,
+  "plugin": {
+    "id": "accessibility_grant",
+    "title": "无障碍授权",
+    "description": "通过 Shizuku 查看、启用或停用设备上的无障碍服务。",
+    "version": "@VERSION_NAME@",
+    "versionCode": @VERSION_CODE@,
+    "minHostVersionCode": @MIN_HOST_VERSION_CODE@,
+    "publisher": "android_tool_suite",
+    "kind": "tool"
+  },
+  "platforms": ["android"],
+  "runtime": {
+    "ui": [{ "id": "main", "type": "declarative", "entry": "ui/main.json" }],
+    "background": [
+      {
+        "id": "auto-grant-worker",
+        "type": "javascript-worker",
+        "entry": "workers/auto-grant.js",
+        "required": false,
+        "timeoutMs": 30000,
+        "maxHeapBytes": 16777216
+      }
+    ],
+    "providers": []
+  },
+  "requires": {
+    "plugins": [],
+    "capabilities": [
+      { "id": "accessibility.manage", "version": "^1.0.0", "optional": false, "scopes": { "allowBackground": true } },
+      { "id": "storage", "version": "^1.0.0", "optional": false, "scopes": {} },
+      { "id": "scheduler", "version": "^1.0.0", "optional": false, "scopes": {} }
+    ]
+  },
+  "provides": { "capabilities": [] },
+  "contributes": {
+    "tools": [{ "id": "main", "uiEntry": "main" }],
+    "homeWidgets": [
+      {
+        "id": "services",
+        "title": "无障碍服务",
+        "template": "status",
+        "dataSource": "accessibility.listServices",
+        "sizes": ["2x2", "4x2"]
+      }
+    ]
+  },
+  "datasets": [
+    {
+      "id": "accessibility-settings",
+      "title": "收藏与自动授权设置",
+      "category": "settings",
+      "formatVersion": 1,
+      "sensitive": false,
+      "mediaType": "application/json",
+      "validator": "json",
+      "maxBytes": 131072,
+      "restoreModes": ["replace"],
+      "dependsOn": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "auto-grant",
+      "backgroundEntry": "auto-grant-worker",
+      "triggers": [
+        { "type": "app-foreground" },
+        { "type": "periodic", "intervalMinutes": 15 }
+      ],
+      "constraints": { "network": "none", "charging": false, "batteryNotLow": true, "storageNotLow": true },
+      "concurrency": { "policy": "forbid" },
+      "retry": { "maxAttempts": 3, "initialBackoffMs": 10000 }
+    }
+  ]
+}
