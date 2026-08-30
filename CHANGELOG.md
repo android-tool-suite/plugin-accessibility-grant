@@ -25,8 +25,12 @@
 
 ### 兼容性
 
-- 基于插件 SDK `1.4.0` 构建，最低宿主版本提升到 Runtime v2 基线 23；保留旧 Android 源码和 Bridge fixture 作为回滚窗口内的兼容验证，不再打入 format v3 交付包。
+- 最低宿主版本提升到 Runtime v2 基线 23；纯 Web/Worker 包不再编译插件 SDK 或生成旧 API1 载荷。
 - 数据写入版本提升到 v2；现有 v1 `accessibility-settings` 通过宿主迁移流程单向恢复到新的 Dataset generation。
+
+### 架构
+
+- 删除冻结期 API1 Android/Compose 实现、空 APK 工程和旧 fixture，仓库只保留 format v3 的 `src/` 清单、声明式 UI、Web 资源与 Worker。
 
 ## 1.4.1 - 2026-08-21
 

@@ -1,62 +1,23 @@
 plugins {
-    id "com.android.application"
-    id "org.jetbrains.kotlin.android"
-    id "org.jetbrains.kotlin.plugin.compose"
+    id "base"
 }
 
 def pluginVersionName = "2.0.0"
 def pluginVersionCode = 12
 def minHostVersionCode = 23
-def pluginSdkVersion = providers.gradleProperty("atsPluginSdkVersion").get()
-
-android {
-    namespace "com.androidtoolsuite.app.plugin.accessibility"
-    compileSdk 35
-
-    defaultConfig {
-        applicationId "com.androidtoolsuite.app.plugin.accessibility"
-        minSdk 24
-        targetSdk 35
-        versionCode pluginVersionCode
-        versionName pluginVersionName
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-
-    buildFeatures {
-        buildConfig true
-        compose true
-    }
-}
-
-kotlin {
-    jvmToolchain(17)
-}
-
-dependencies {
-    compileOnly "com.androidtoolsuite:plugin-sdk:$pluginSdkVersion"
-    testImplementation "com.androidtoolsuite:plugin-sdk:$pluginSdkVersion"
-    testImplementation "junit:junit:4.13.2"
-    testImplementation "org.json:json:20240303"
-}
-
-def runtimeV2Staging = layout.buildDirectory.dir("generated/runtimeV2Package")
+def packageStaging = layout.buildDirectory.dir("generated/plugin-package")
 
 def generatePluginManifest = tasks.register("generatePluginManifest") {
     inputs.property("pluginVersionName", pluginVersionName)
     inputs.property("pluginVersionCode", pluginVersionCode)
     inputs.property("minHostVersionCode", minHostVersionCode)
-    inputs.property("pluginSdkVersion", pluginSdkVersion)
-    inputs.file("runtime-v2/manifest.template.json")
-    outputs.file(runtimeV2Staging.map { it.file("manifest.json") })
+    inputs.file("src/manifest.template.json")
+    outputs.file(packageStaging.map { it.file("manifest.json") })
     doLast {
-        def output = runtimeV2Staging.get().file("manifest.json").asFile
+        def output = packageStaging.get().file("manifest.json").asFile
         output.parentFile.mkdirs()
         output.setText(
-                file("runtime-v2/manifest.template.json").getText("UTF-8")
+                file("src/manifest.template.json").getText("UTF-8")
                         .replace("@VERSION_NAME@", pluginVersionName)
                         .replace("@VERSION_CODE@", pluginVersionCode.toString())
                         .replace("@MIN_HOST_VERSION_CODE@", minHostVersionCode.toString()),
@@ -65,18 +26,18 @@ def generatePluginManifest = tasks.register("generatePluginManifest") {
     }
 }
 
-def prepareRuntimeV2Package = tasks.register("prepareRuntimeV2Package") {
+def preparePluginPackage = tasks.register("preparePluginPackage") {
     dependsOn generatePluginManifest
-    inputs.dir("runtime-v2/web")
-    inputs.dir("runtime-v2/ui")
-    inputs.dir("runtime-v2/workers")
-    outputs.dir(runtimeV2Staging)
+    inputs.dir("src/web")
+    inputs.dir("src/ui")
+    inputs.dir("src/workers")
+    outputs.dir(packageStaging)
     doLast {
-        def root = runtimeV2Staging.get().asFile
+        def root = packageStaging.get().asFile
         delete new File(root, "web"), new File(root, "ui"), new File(root, "workers"), new File(root, "META-INF")
-        copy { from("runtime-v2/web"); into(new File(root, "web")) }
-        copy { from("runtime-v2/ui"); into(new File(root, "ui")) }
-        copy { from("runtime-v2/workers"); into(new File(root, "workers")) }
+        copy { from("src/web"); into(new File(root, "web")) }
+        copy { from("src/ui"); into(new File(root, "ui")) }
+        copy { from("src/workers"); into(new File(root, "workers")) }
         def payloads = fileTree(root).matching { exclude "META-INF/**" }.files
                 .sort { left, right -> root.toPath().relativize(left.toPath()).toString() <=> root.toPath().relativize(right.toPath()).toString() }
         def files = payloads.collect { item ->
@@ -98,14 +59,14 @@ def prepareRuntimeV2Package = tasks.register("prepareRuntimeV2Package") {
     }
 }
 
-def registerRuntimeV2Package = { String taskName, String outputPath, String assembleTask ->
+def registerPluginPackage = { String taskName, String outputPath ->
     tasks.register(taskName) {
-        dependsOn assembleTask, prepareRuntimeV2Package
+        dependsOn preparePluginPackage
         def archive = layout.buildDirectory.file(outputPath)
-        inputs.dir(runtimeV2Staging)
+        inputs.dir(packageStaging)
         outputs.file(archive)
         doLast {
-            def root = runtimeV2Staging.get().asFile
+            def root = packageStaging.get().asFile
             def destination = archive.get().asFile
             destination.parentFile.mkdirs()
             new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(destination)).withCloseable { zip ->
@@ -125,8 +86,8 @@ def registerRuntimeV2Package = { String taskName, String outputPath, String asse
     }
 }
 
-registerRuntimeV2Package("packageReleasePlugin", "outputs/atsplugin/release/accessibility-grant.atsplugin", "assembleRelease")
-registerRuntimeV2Package("packagePlugin", "outputs/atsplugin/accessibility-grant.atsplugin", "assembleDebug")
+registerPluginPackage("packageReleasePlugin", "outputs/atsplugin/release/accessibility-grant.atsplugin")
+registerPluginPackage("packagePlugin", "outputs/atsplugin/accessibility-grant.atsplugin")
 
 tasks.register("collectArtifacts", Copy) {
     dependsOn "packagePlugin"
