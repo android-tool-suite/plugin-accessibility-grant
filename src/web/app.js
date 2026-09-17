@@ -78,7 +78,7 @@
     }
   }
 
-  const state = {settings:{formatVersion:1,favorites:[],autoGrant:false},services:[],query:'',favoritesOnly:false,loading:false};
+  const state = {settings:{formatVersion:1,favorites:[],autoGrant:false},services:[],query:'',favoritesOnly:false,loading:false,connection:'loading'};
   const elements = Object.fromEntries(['refresh','connection-card','connection-title','connection-detail','query','favorites-only','auto-grant','summary','progress','message','services'].map(id => [id, document.getElementById(id)]));
   const iconPaths = {
     accessibility:'M20.5 6A10.8 10.8 0 0 1 14 3.82 2.5 2.5 0 1 0 10 3.82 10.8 10.8 0 0 1 3.5 6H2v2h1.5c1.82 0 3.57-.43 5.12-1.22L7 20h2l3-8 3 8h2L15.38 6.78A11.8 11.8 0 0 0 20.5 8H22V6h-1.5Z',
@@ -109,7 +109,7 @@
     const favorites = new Set(state.settings.favorites);
     const visible = state.services.filter(service => (!state.favoritesOnly || favorites.has(service.component)) && (!query || `${service.appLabel} ${service.serviceLabel} ${service.component}`.toLowerCase().includes(query)));
     const enabled = state.services.filter(item => item.enabled).length;
-    elements.summary.textContent = state.services.length ? `${state.services.length} 个服务 · ${enabled} 个已启用` : '等待读取设备服务';
+    elements.summary.textContent = state.services.length ? `${state.services.length} 个服务 · ${enabled} 个已启用` : state.loading ? '正在读取设备服务' : state.connection === 'ready' ? '没有可用服务' : '暂时无法读取服务';
     elements.services.replaceChildren(...visible.map(service => {
       const card = document.createElement('article'); card.className = 'service-card';
       const head = document.createElement('div'); head.className = 'service-head';
@@ -119,6 +119,7 @@
       const label = document.createElement('span'); label.textContent = service.serviceLabel;
       name.append(app,label);
       const favorite = document.createElement('button'); favorite.type = 'button'; favorite.className = `favorite${favorites.has(service.component) ? ' active' : ''}`; favorite.append(svgIcon(favorites.has(service.component) ? 'favorite' : 'favoriteBorder')); favorite.setAttribute('aria-label', favorites.has(service.component) ? '取消收藏' : '收藏');
+      favorite.setAttribute('aria-pressed', String(favorites.has(service.component)));
       favorite.onclick = async () => {
         const values = new Set(state.settings.favorites);
         values.has(service.component) ? values.delete(service.component) : values.add(service.component);
@@ -132,7 +133,10 @@
         } catch (error) { showMessage(error.message); }
       };
       head.append(icon,name,favorite);
-      const component = document.createElement('div'); component.className = 'component'; component.textContent = service.component;
+      const component = document.createElement('details'); component.className = 'component';
+      const componentTitle = document.createElement('summary'); componentTitle.textContent = '服务详情';
+      const componentValue = document.createElement('p'); componentValue.textContent = service.component;
+      component.append(componentTitle, componentValue);
       const actions = document.createElement('div'); actions.className = 'service-actions';
       const status = document.createElement('span'); status.className = `status${service.enabled ? ' enabled' : ''}`; status.textContent = service.enabled ? '已启用' : '未启用';
       const spacer = document.createElement('span'); spacer.className = 'spacer';
@@ -149,13 +153,22 @@
     try {
       const connection = await call('accessibility.getConnection');
       const key = connectionText[connection.state] ? connection.state : 'disconnected';
+      state.connection = key;
       const [title,detail,icon] = connectionText[key];
       elements['connection-title'].textContent = title; elements['connection-detail'].textContent = detail;
       elements['connection-card'].querySelector('.status-icon path').setAttribute('d', iconPaths[icon]);
       elements['connection-card'].classList.toggle('ready', key === 'ready');
       if (key !== 'ready') { state.services = []; showMessage(detail); return; }
       const result = await call('accessibility.listServices'); state.services = result.services || [];
-    } catch (error) { state.services = []; showMessage(error.message || '读取服务失败'); }
+    } catch (error) {
+      state.services = []; state.connection = 'error';
+      const denied = error.code === 'PERMISSION_DENIED';
+      elements['connection-title'].textContent = denied ? '需要允许管理无障碍服务' : '连接检查失败';
+      elements['connection-detail'].textContent = denied ? '在插件管理中允许此功能后，返回重新检查。' : '请检查系统服务状态后重试。';
+      elements['connection-card'].classList.remove('ready');
+      elements['connection-card'].querySelector('.status-icon path').setAttribute('d', iconPaths.cloudOff);
+      showMessage(error.message || '读取服务失败');
+    }
     finally { setLoading(false); }
   }
 

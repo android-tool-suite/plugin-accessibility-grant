@@ -20,17 +20,16 @@
       </section>
 
       <section class="card controls">
-        <h2>查找与自动启用</h2>
+        <div class="control-row">
+          <div class="grow"><strong>自动启用收藏</strong><small>打开应用时检查，并按系统调度定期恢复</small></div>
+          <label class="switch"><input id="auto-grant" type="checkbox" aria-label="自动启用收藏"><span aria-hidden="true"></span></label>
+        </div>
+        <small>开启后，新收藏的服务也会自动启用。</small>
+      </section>
+      <section class="search-controls">
         <label for="query">搜索应用、服务或包名</label>
         <input id="query" type="search" autocomplete="off" placeholder="输入关键词">
-        <div class="control-row">
-          <button id="favorites-only" class="chip" type="button" aria-pressed="false">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.35 10.55 20.03C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09A6.02 6.02 0 0 1 16.5 3C19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z"/></svg>
-            仅看收藏
-          </button>
-          <div class="grow"><strong>自动启用收藏</strong><small>打开本应用时检查，并定期重新启用</small></div>
-          <label class="switch"><input id="auto-grant" type="checkbox"><span aria-hidden="true"></span></label>
-        </div>
+        <button id="favorites-only" class="chip" type="button" aria-pressed="false">仅看收藏</button>
       </section>
 
       <section class="list-section">

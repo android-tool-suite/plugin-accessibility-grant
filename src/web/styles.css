@@ -62,3 +62,12 @@ button:disabled{opacity:.52;cursor:not-allowed}
 .progress{height:4px;overflow:hidden;border-radius:999px;background:var(--ats-surface-highest)}
 .progress span{display:block;width:35%;height:100%;background:var(--ats-primary);animation:progress 1s infinite alternate ease-in-out}
 @keyframes progress{to{transform:translateX(185%)}}
+.search-controls{display:grid;gap:var(--ats-space-sm);min-width:0}.search-controls .chip{justify-self:start}
+.controls>small{color:var(--ats-on-surface-variant);font-size:var(--ats-type-body-small-size)}
+.connection.ready{padding:var(--ats-space-md) var(--ats-space-lg);background:var(--ats-surface-low)}
+.component summary{cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--ats-primary)}
+.component p{margin:0;padding-bottom:var(--ats-space-sm)}
+.service-card{padding:var(--ats-space-md) var(--ats-space-lg)}
+.service-name strong,.service-name span{white-space:normal;overflow-wrap:anywhere}
+.action{min-height:44px}.switch input:focus-visible+span{outline:2px solid var(--ats-primary);outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.switch span,.switch span:after{transition:none}.progress span{animation:none;width:100%}}
