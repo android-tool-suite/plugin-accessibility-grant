@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: component-ci-${{ github.ref }}
@@ -44,38 +44,3 @@ jobs:
           name: accessibility-grant-${{ github.sha }}
           path: artifacts/accessibility-grant.atsplugin
           if-no-files-found: error
-
-      - name: Prepare debug release assets
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        shell: pwsh
-        run: |
-          .\.github\scripts\prepare-release.ps1 `
-            -ArtifactPath .\artifacts\accessibility-grant.atsplugin `
-            -OutputDirectory .\debug-dist `
-            -Channel debug `
-            -CommitSha '${{ github.sha }}'
-
-      - name: Publish rolling and historical debug releases
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: .\.github\scripts\publish-debug.ps1 -AssetDirectory .\debug-dist -Title 'Accessibility Grant Debug'
-
-      - name: Create registry app token
-        id: registry-app-token
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
-        with:
-          client-id: ${{ vars.REGISTRY_APP_CLIENT_ID }}
-          private-key: ${{ secrets.REGISTRY_APP_PRIVATE_KEY }}
-          owner: android-tool-suite
-          repositories: plugin-registry
-          permission-contents: write
-
-      - name: Notify plugin registry
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ steps.registry-app-token.outputs.token }}
-        run: .\.github\scripts\dispatch-registry.ps1 -Channel debug -Reference debug
