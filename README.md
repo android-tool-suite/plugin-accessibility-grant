@@ -22,7 +22,7 @@ gradle clean collectArtifacts
 
 ## 发布通道
 
-- 日常 CI 只测试与构建。手动推送 `debug-<完整提交 SHA>` 标签后，Debug 发布工作流重新验证并创建不可变预发布，再通知调试目录更新；不再创建滚动 `debug`。
+- 日常 CI 只测试与构建。手动推送 `debug-v<版本号>` 标签后，Debug 发布工作流重新验证并创建不可变预发布，再通知调试目录更新；不再创建滚动 `debug`。
 - 推送 `v<versionName>` 标签后，工作流构建并发布正式 Release。
 - 两种发布都会生成 `release-metadata.json` 和 `SHA256SUMS.txt`，并通过 GitHub App 短时令牌发送事件通知插件索引更新。
 - `data-compatibility.json` 声明当前构建可能写入的数据格式及可读取范围；修改持久化格式时必须同步递增并评估兼容范围，宿主据此决定是否允许历史版本降级。
