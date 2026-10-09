@@ -1,48 +1,33 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-    <title>无障碍授权</title>
-    <link rel="stylesheet" href="/__ats__/theme.css">
-    <link rel="stylesheet" href="styles.css">
-    <script src="app.js" defer></script>
-  </head>
-  <body>
-    <main>
-      <section class="notice warning">
-        无障碍服务可以读取屏幕内容并执行点击、滑动等操作，请只为完全信任的应用授权。
-      </section>
-
-      <section id="connection-card" class="card connection" aria-live="polite">
-        <svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true"><path></path></svg>
-        <div><h2 id="connection-title">正在检查连接</h2><p id="connection-detail">请稍候</p></div>
-      </section>
-
-      <section class="card controls">
-        <div class="control-row">
-          <div class="grow"><strong>自动启用收藏</strong><small>打开应用时检查，并按系统调度定期恢复</small></div>
-          <label class="switch"><input id="auto-grant" type="checkbox" aria-label="自动启用收藏"><span aria-hidden="true"></span></label>
-        </div>
-        <small>开启后，新收藏的服务也会自动启用。</small>
-      </section>
-      <section class="search-controls">
-        <label for="query">搜索应用、服务或包名</label>
-        <input id="query" type="search" autocomplete="off" placeholder="输入关键词">
-        <button id="favorites-only" class="chip" type="button" aria-pressed="false">仅看收藏</button>
-      </section>
-
-      <section class="list-section">
-        <div class="section-header compact">
-          <div><h2>无障碍服务</h2><p id="summary">等待读取设备服务</p></div>
-          <button id="refresh" class="icon-button" type="button" aria-label="刷新">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.74 10h-2.09A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h8V3l-3.35 3.35Z"/></svg>
-          </button>
-        </div>
-        <div id="progress" class="progress" hidden><span></span></div>
-        <div id="message" class="empty" hidden></div>
-        <div id="services" class="service-list"></div>
-      </section>
-    </main>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>无障碍服务</title>
+  <link rel="stylesheet" href="/__ats__/theme.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="settings.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main id="content" hidden>
+    <section id="connection-card" class="notice warning" hidden><strong id="connection-title"></strong><p id="connection-detail"></p><button id="resolve-connection" class="text-button" type="button">处理连接</button></section>
+    <section id="background-notice" class="notice warning" hidden><p>允许后台权限后，自动恢复才能执行。已保存的规则会保留，也可以关闭。</p><button id="open-permissions" class="text-button" type="button">允许自动恢复</button></section>
+    <section class="service-toolbar">
+      <div class="section-header"><p id="summary" aria-live="polite"></p><div class="toolbar-actions"><button id="search-toggle" class="icon-button" type="button" aria-label="搜索服务" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg></button><button id="refresh" class="icon-button" type="button" aria-label="重新检查服务"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.74 10h-2.09A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h8V3l-3.35 3.35Z"/></svg></button></div></div>
+      <div id="query-box" class="search-controls" hidden><label class="sr-only" for="query">搜索应用、服务或包名</label><input id="query" type="search" autocomplete="off" placeholder="搜索应用、服务或包名"><button id="search-close" class="text-button" type="button">清除并关闭搜索</button></div>
+      <div id="filters" class="filter-row" role="group" aria-label="服务范围"><button class="chip" type="button" data-filter="all" aria-pressed="true">全部</button><button class="chip" type="button" data-filter="favorites" aria-pressed="false">收藏</button><button class="chip" type="button" data-filter="enabled" aria-pressed="false">已启用</button><button class="chip" type="button" data-filter="automatic" aria-pressed="false">自动恢复</button></div>
+    </section>
+    <section class="list-section" aria-label="按应用分组的服务">
+      <div class="progress-slot"><div id="progress" class="progress" hidden><span></span></div></div>
+      <div id="message" class="notice" role="status" hidden></div>
+      <div id="settings-error" class="notice warning" hidden><p>无法读取收藏与自动恢复设置，设置修改已暂停。</p><button id="retry-settings" class="text-button" type="button">重新读取设置</button></div>
+      <div id="services" class="service-list"></div>
+      <div id="empty" class="empty" hidden><h2 id="empty-title"></h2><p id="empty-detail"></p><button id="reset-filter" class="text-button" type="button" hidden>重置条件</button></div>
+    </section>
+    <details class="safety-note"><summary>自动恢复与授权说明</summary><p>收藏只改变查找顺序，启用控制当前状态，自动恢复在服务关闭后按系统调度尝试开启。恢复可能延迟，仍需系统连接和后台权限。请只启用信任的无障碍服务。</p></details>
+  </main>
+<dialog id="service-detail" aria-labelledby="service-detail-title"><div class="section-header"><h2 id="service-detail-title"></h2><button id="service-detail-close" class="text-button">关闭</button></div><p class="supporting">系统服务标识</p><p id="service-component" class="component-id"></p><p class="supporting">启用、收藏与自动恢复直接在服务列表调整。</p></dialog>
+<dialog id="stop-service" aria-labelledby="stop-title"><div class="section-header"><h2 id="stop-title">停用服务</h2></div><p id="stop-service-name"></p><p class="supporting">此服务已开启自动恢复。可以同时暂停恢复，或仅停用当前状态，保留之后自动开启的规则。</p><div class="stop-actions"><button id="stop-pause">停用并暂停恢复</button><button id="stop-once" class="secondary">仅本次停用</button><button id="stop-cancel" class="text-button">取消</button></div></dialog>
+</body>
 </html>

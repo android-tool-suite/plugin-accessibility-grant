@@ -5,14 +5,16 @@
   if (!pluginId || !sessionId || !transport) return;
 
   let nextId = 1;
-  let readyResolve;
-  const ready = new Promise(resolve => { readyResolve = resolve; });
+  let readyResolve, readyReject;
+  const ready = new Promise((resolve,reject) => { readyResolve = resolve; readyReject = reject; });
+  const readyTimeout = setTimeout(() => readyReject(new Error('无法连接宿主，请返回后重新打开工具。')),5000);
   const pending = new Map();
   transport.onmessage = event => {
     let message;
     try { message = JSON.parse(event.data); } catch (_) { return; }
     if (message.pluginId !== pluginId || message.sessionId !== sessionId) return;
-    if (message.kind === 'ready') { readyResolve(message.payload); return; }
+    if (message.kind === 'ready') { clearTimeout(readyTimeout); readyResolve(message.payload); return; }
+    if (message.kind === 'event') { runtimeEvent(message); return; }
     if (message.kind !== 'response') return;
     const request = pending.get(message.requestId);
     if (!request) return;
@@ -61,7 +63,7 @@
     let cursor = 0;
     for (const chunk of chunks) { bytes.set(chunk, cursor); cursor += chunk.length; }
     const value = JSON.parse(new TextDecoder().decode(bytes));
-    return value.formatVersion === 1 ? value : {formatVersion:1,favorites:[],autoGrant:false};
+    return value;
   }
 
   async function writeSettings(value) {
@@ -78,132 +80,217 @@
     }
   }
 
-  const state = {settings:{formatVersion:1,favorites:[],autoGrant:false},services:[],query:'',favoritesOnly:false,loading:false,connection:'loading'};
-  const elements = Object.fromEntries(['refresh','connection-card','connection-title','connection-detail','query','favorites-only','auto-grant','summary','progress','message','services'].map(id => [id, document.getElementById(id)]));
+  const model = globalThis.AccessibilitySettings;
+  const state = {settings:model.normalize(null),settingsReady:false,services:[],query:'',searchOpen:false,filter:'all',loading:false,connection:'unknown',background:false,manage:false,busy:new Set(),saving:false,message:'',messageSource:'',expanded:new Set(),visible:true};
+  let stopRequest=null;
+  const ids = ['content','refresh','connection-card','connection-title','connection-detail','resolve-connection','background-notice','open-permissions','query','query-box','search-toggle','search-close','filters','summary','progress','message','services','settings-error','retry-settings','empty','empty-title','empty-detail','reset-filter'];
+  const elements = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
   const iconPaths = {
     accessibility:'M20.5 6A10.8 10.8 0 0 1 14 3.82 2.5 2.5 0 1 0 10 3.82 10.8 10.8 0 0 1 3.5 6H2v2h1.5c1.82 0 3.57-.43 5.12-1.22L7 20h2l3-8 3 8h2L15.38 6.78A11.8 11.8 0 0 0 20.5 8H22V6h-1.5Z',
-    favorite:'M12 21.35 10.55 20.03C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09A6.02 6.02 0 0 1 16.5 3C19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z',
-    favoriteBorder:'M16.5 3c-1.74 0-3.41.81-4.5 2.09A6.02 6.02 0 0 0 7.5 3C4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3Zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05Z',
-    check:'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9Z',
-    cloudOff:'M19.35 10.04A7.49 7.49 0 0 0 5.32 6.5L1.39 2.57 0 3.97l3.78 3.78A5.99 5.99 0 0 0 6 19h9.02l2 2 1.41-1.41L3.27 4.43 1.86 5.84l2.23 2.23A4 4 0 0 0 6 17h7.02L5.14 9.12A5.5 5.5 0 0 1 16.9 11.5v.5h1.5a2.5 2.5 0 0 1 1.87 4.16l1.42 1.42A4.5 4.5 0 0 0 19.35 10.04Z'
+    restore:'M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.09A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h8V3l-3.35 3.35Z',
+    star:'m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+    starBorder:'m12 6.52 1.79 3.63 4.01.58-2.9 2.83.69 3.99L12 15.66l-3.59 1.89.69-3.99-2.9-2.83 4.01-.58L12 6.52M12 2 8.91 8.26 2 9.27l5 4.87-1.18 6.88L12 17.77l6.18 3.25L17 14.14l5-4.87-6.91-1.01L12 2z'
   };
-  const svgIcon = name => {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', iconPaths[name]);
-    svg.append(path); return svg;
-  };
+  function node(tag, className, text) {
+    const item = document.createElement(tag);
+    if (className) item.className = className;
+    if (text != null) item.textContent = text;
+    return item;
+  }
+  function icon(name) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('aria-hidden','true');
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',iconPaths[name]); svg.append(path); return svg;
+  }
   const connectionText = {
-    ready:['运行正常','Shizuku 已连接，可以管理无障碍服务','check'],
-    connecting:['正在连接服务','Shizuku 已授权，正在连接系统服务','cloudOff'],
-    unauthorized:['等待 Shizuku 授权','请先在“Shizuku 授权”工具中批准本应用','cloudOff'],
-    disconnected:['Shizuku 未连接','请先在设备上启动 Shizuku，再返回刷新','cloudOff']
+    offline:['系统连接暂不可用','先启动设备上的 Shizuku，再返回检查。'],
+    disconnected:['系统连接暂不可用','先启动设备上的 Shizuku，再返回检查。'],
+    unauthorized:['等待允许本应用','前往 Shizuku 授权，确认本应用的连接请求。'],
+    connecting:['正在建立系统连接','前往 Shizuku 授权，重新连接系统服务。'],
+    denied:['尚未允许管理无障碍服务','允许此插件的管理权限后，可以读取和调整服务。'],
+    error:['无法读取服务','检查连接和权限后重新检查；已有设置不会被清空。'],
+    unknown:['连接状态尚未确认','重新检查后可以管理服务。']
   };
-
-  function setLoading(value) { state.loading = value; elements.progress.hidden = !value; render(); }
-  function showMessage(value) { elements.message.textContent = value || ''; elements.message.hidden = !value; }
+  let progressTimer, refreshPromise;
+  function showMessage(text,source = 'feedback') {
+    state.message = text || ''; state.messageSource = text ? source : ''; renderMessage();
+  }
+  function renderMessage() { elements.message.textContent = state.message; elements.message.hidden = !state.message;elements.message.className='notice'+(state.messageSource&&state.messageSource!=='feedback'?' warning':''); }
+  function setLoading(value) {
+    state.loading = value; clearTimeout(progressTimer);
+    if (value && !elements.content.hidden) progressTimer = setTimeout(() => { elements.progress.hidden = false; },200);
+    else elements.progress.hidden = true;
+    elements.refresh.disabled = value;
+  }
+  function permissionSnapshot(permissions) {
+    if (!Array.isArray(permissions)) return;
+    state.background = permissions.some(item => item.capability === 'scheduler' && item.state === 'granted');
+    state.manage = permissions.some(item => item.capability === 'accessibility.manage' && item.state === 'granted');
+  }
+  function switchControl(service, title, checked, disabled, key, onChange) {
+    const label = node('label','service-control'); label.append(node('span','',title));
+    const box = node('span','switch'), input = node('input'); input.type = 'checkbox'; input.checked = checked; input.disabled = disabled;
+    input.setAttribute('aria-label',`${service.appLabel} · ${service.serviceLabel} · ${title}`);
+    input.dataset.control = key + ':' + service.component;
+    input.onchange = () => onChange(input.checked);
+    const track = node('span'); track.setAttribute('aria-hidden','true'); box.append(input,track); label.append(box); return label;
+  }
+  function serviceRow(service,compact=false) {
+    const favorite = state.settings.favorites.includes(service.component), automatic = state.settings.autoRestore.includes(service.component);
+    const busy = state.busy.has(service.component);
+    const row = node('article','service-row'), head = node('div','service-head');
+    const name = node('button','service-name');name.type='button';name.dataset.control='info:'+service.component;name.setAttribute('aria-label',service.appLabel+' · '+service.serviceLabel+' · 服务详情');name.append(node('strong','',service.serviceLabel));
+    if (busy) name.append(node('small','status','处理中'));
+    head.append(name);
+    const star = node('button',`favorite${favorite ? ' selected' : ''}`);
+    star.type = 'button'; star.setAttribute('aria-pressed',String(favorite)); star.setAttribute('aria-label',`${favorite ? '取消收藏' : '收藏'}${service.appLabel} · ${service.serviceLabel}`);
+    star.dataset.control = 'favorite:' + service.component; star.disabled = !state.settingsReady || state.saving;
+    star.append(icon(favorite ? 'star' : 'starBorder'));
+    star.onclick = () => saveMembership(service,'favorites',!favorite);
+    const restore = node('button',`restore${automatic ? ' selected' : ''}`);
+    restore.type='button';restore.setAttribute('aria-pressed',String(automatic));
+    restore.setAttribute('aria-label',`${automatic ? '关闭' : '开启'}自动恢复 · ${service.appLabel} · ${service.serviceLabel}`);
+    restore.title=automatic?'自动恢复已开启，点击关闭':'自动恢复已关闭，点击开启';
+    restore.dataset.control='automatic:'+service.component;
+    restore.disabled=busy || state.saving || !state.settingsReady || (!state.background&&!automatic);
+    restore.append(icon('restore'));restore.onclick=()=>saveMembership(service,'autoRestore',!automatic);
+    head.append(star,restore,switchControl(service,'启用',service.enabled,busy || state.loading || state.saving || (!state.settingsReady&&service.enabled),'enabled',value => setEnabled(service,value)));
+    const info = node('button','service-info','详情');info.type='button';info.dataset.control='info:'+service.component;
+    info.setAttribute('aria-label',`${service.appLabel} · ${service.serviceLabel} · 服务详情`);
+    info.onclick=()=>{
+      document.getElementById('service-detail-title').textContent=service.appLabel===service.serviceLabel?service.serviceLabel:service.appLabel+' · '+service.serviceLabel;
+      document.getElementById('service-component').textContent=service.component;
+      document.getElementById('service-detail').showModal();
+      call('app.setBackNavigation',{enabled:true}).catch(()=>{});
+    };
+    name.onclick=info.onclick;row.append(head);
+    if(automatic&&!service.enabled)name.append(node('small','auto-badge',state.background?'等待检查恢复':'恢复规则已保存'));
+    return row;
+  }
   function render() {
-    elements['auto-grant'].checked = !!state.settings.autoGrant;
-    elements['favorites-only'].setAttribute('aria-pressed', String(state.favoritesOnly));
-    const query = state.query.trim().toLowerCase();
-    const favorites = new Set(state.settings.favorites);
-    const visible = state.services.filter(service => (!state.favoritesOnly || favorites.has(service.component)) && (!query || `${service.appLabel} ${service.serviceLabel} ${service.component}`.toLowerCase().includes(query)));
-    const enabled = state.services.filter(item => item.enabled).length;
-    elements.summary.textContent = state.services.length ? `${state.services.length} 个服务 · ${enabled} 个已启用` : state.loading ? '正在读取设备服务' : state.connection === 'ready' ? '没有可用服务' : '暂时无法读取服务';
-    elements.services.replaceChildren(...visible.map(service => {
-      const card = document.createElement('article'); card.className = 'service-card';
-      const head = document.createElement('div'); head.className = 'service-head';
-      const icon = document.createElement('div'); icon.className = 'service-icon'; icon.append(svgIcon('accessibility'));
-      const name = document.createElement('div'); name.className = 'service-name';
-      const app = document.createElement('strong'); app.textContent = service.appLabel;
-      const label = document.createElement('span'); label.textContent = service.serviceLabel;
-      name.append(app,label);
-      const favorite = document.createElement('button'); favorite.type = 'button'; favorite.className = `favorite${favorites.has(service.component) ? ' active' : ''}`; favorite.append(svgIcon(favorites.has(service.component) ? 'favorite' : 'favoriteBorder')); favorite.setAttribute('aria-label', favorites.has(service.component) ? '取消收藏' : '收藏');
-      favorite.setAttribute('aria-pressed', String(favorites.has(service.component)));
-      favorite.onclick = async () => {
-        const values = new Set(state.settings.favorites);
-        values.has(service.component) ? values.delete(service.component) : values.add(service.component);
-        state.settings.favorites = [...values].sort(); render();
-        try {
-          await writeSettings(state.settings);
-          if (state.settings.autoGrant && values.has(service.component) && !service.enabled) {
-            await call('accessibility.setEnabled', {component:service.component,enabled:true});
-            await refresh();
-          }
-        } catch (error) { showMessage(error.message); }
-      };
-      head.append(icon,name,favorite);
-      const component = document.createElement('details'); component.className = 'component';
-      const componentTitle = document.createElement('summary'); componentTitle.textContent = '服务详情';
-      const componentValue = document.createElement('p'); componentValue.textContent = service.component;
-      component.append(componentTitle, componentValue);
-      const actions = document.createElement('div'); actions.className = 'service-actions';
-      const status = document.createElement('span'); status.className = `status${service.enabled ? ' enabled' : ''}`; status.textContent = service.enabled ? '已启用' : '未启用';
-      const spacer = document.createElement('span'); spacer.className = 'spacer';
-      const action = document.createElement('button'); action.type = 'button'; action.className = `action${service.enabled ? '' : ' primary'}`; action.textContent = service.enabled ? '停用' : '启用'; action.disabled = state.loading;
-      action.onclick = () => setEnabled(service, !service.enabled);
-      actions.append(status,spacer,action); card.append(head,component,actions); return card;
+    const activeKey = document.activeElement?.dataset?.control;
+    const connected = state.connection === 'ready';
+    elements['connection-card'].hidden = connected;
+    const [title,detail] = connectionText[state.connection] || connectionText.unknown;
+    elements['connection-title'].textContent = title; elements['connection-detail'].textContent = detail;
+    elements['resolve-connection'].textContent = state.connection === 'denied' ? '查看权限' : '处理连接';
+    elements['background-notice'].hidden = state.background;
+    elements['settings-error'].hidden = state.settingsReady;
+    for (const button of elements.filters.querySelectorAll('[data-filter]')) button.setAttribute('aria-pressed',String(button.dataset.filter === state.filter));
+    const visible = connected ? model.select(state.services,state.settings,state.filter,state.query) : [];
+    elements.summary.textContent = connected ? `${visible.length} 个服务 · ${visible.filter(service=>service.enabled).length} 个已启用` : '连接就绪后显示服务';
+    elements['query-box'].hidden=!state.searchOpen&&!state.query;
+    elements['search-toggle'].setAttribute('aria-expanded',String(state.searchOpen||!!state.query));
+    const groups=new Map();for(const service of visible){const key=service.component.split('/')[0];if(!groups.has(key))groups.set(key,[]);groups.get(key).push(service);}
+    elements.services.replaceChildren(...[...groups.values()].map(services=>{
+      const group=node('section','service-group'),header=node('div','service-group-header'),mark=node('span','service-icon');mark.append(icon('accessibility'));
+      const application=services[0].appLabel===services[0].component.split('/')[0]&&services.length===1?services[0].serviceLabel:services[0].appLabel;
+      header.append(mark,node('h2','',application));if(services.length>1)header.append(node('span','group-count',services.length+' 个服务'));
+      if(services.length===1&&application===services[0].serviceLabel)group.append(serviceRow(services[0],true));else group.append(header,...services.map(service=>serviceRow(service)));return group;
     }));
-    if (!state.loading && !visible.length) showMessage(state.services.length ? '没有匹配的服务。请清除搜索内容或关闭“仅看收藏”。' : elements.message.hidden ? '没有发现无障碍服务。' : elements.message.textContent);
-    else if (visible.length) showMessage('');
+    elements.empty.hidden = visible.length > 0;
+    elements['empty-title'].textContent = !connected ? '先完成准备条件' : state.services.length ? '没有匹配的服务' : '没有发现无障碍服务';
+    elements['empty-detail'].textContent = !connected ? '服务的原有设置不会因暂时无法读取而被清空。' : state.services.length ? '清除搜索或切换列表范围。' : '安装提供无障碍服务的应用后，重新检查。';
+    elements['reset-filter'].hidden = !connected || (!state.query && state.filter === 'all');
+    renderMessage();
+    if (activeKey) [...elements.services.querySelectorAll('[data-control]')].find(item => item.dataset.control === activeKey)?.focus({preventScroll:true});
   }
-
-  async function refresh() {
-    setLoading(true); showMessage('');
-    try {
-      const connection = await call('accessibility.getConnection');
-      const key = connectionText[connection.state] ? connection.state : 'disconnected';
-      state.connection = key;
-      const [title,detail,icon] = connectionText[key];
-      elements['connection-title'].textContent = title; elements['connection-detail'].textContent = detail;
-      elements['connection-card'].querySelector('.status-icon path').setAttribute('d', iconPaths[icon]);
-      elements['connection-card'].classList.toggle('ready', key === 'ready');
-      if (key !== 'ready') { state.services = []; showMessage(detail); return; }
-      const result = await call('accessibility.listServices'); state.services = result.services || [];
-    } catch (error) {
-      state.services = []; state.connection = 'error';
-      const denied = error.code === 'PERMISSION_DENIED';
-      elements['connection-title'].textContent = denied ? '需要允许管理无障碍服务' : '连接检查失败';
-      elements['connection-detail'].textContent = denied ? '在插件管理中允许此功能后，返回重新检查。' : '请检查系统服务状态后重试。';
-      elements['connection-card'].classList.remove('ready');
-      elements['connection-card'].querySelector('.status-icon path').setAttribute('d', iconPaths.cloudOff);
-      showMessage(error.message || '读取服务失败');
-    }
-    finally { setLoading(false); }
+  async function loadSettings() {
+    try { state.settings = model.normalize(await readSettings()); state.settingsReady = true; }
+    catch (error) { state.settingsReady = false; showMessage(error.message || '无法读取设置','settings-read'); }
   }
-
-  async function setEnabled(service, enabled) {
-    setLoading(true);
-    try { await call('accessibility.setEnabled', {component:service.component,enabled}); await refresh(); }
-    catch (error) {
-      const message = error.message || '操作失败';
-      await refresh();
-      showMessage(message);
-    }
-  }
-
-  elements.refresh.onclick = refresh;
-  elements.query.oninput = event => { state.query = event.target.value; render(); };
-  elements['favorites-only'].onclick = () => { state.favoritesOnly = !state.favoritesOnly; render(); };
-  elements['auto-grant'].onchange = async event => {
-    state.settings.autoGrant = event.target.checked; render();
-    try {
-      await writeSettings(state.settings);
-      if (state.settings.autoGrant) {
-        const favorites = new Set(state.settings.favorites);
-        const failures = [];
-        for (const service of state.services.filter(item => favorites.has(item.component) && !item.enabled)) {
-          try {
-            await call('accessibility.setEnabled', {component:service.component,enabled:true});
-          } catch (error) {
-            failures.push(error.message || '有收藏服务未能自动启用');
-          }
+  async function refresh(userInitiated = false) {
+    if (refreshPromise) return refreshPromise;
+    refreshPromise = (async () => {
+      setLoading(true);
+      try {
+        const connection = await call('accessibility.getConnection',{},5000);
+        state.connection = connection.state;
+        if (connection.state === 'ready') {
+          const result = await call('accessibility.listServices');
+          state.services = Array.isArray(result.services) ? result.services : [];
+          state.manage = true;
+          if (state.messageSource === 'services-read') showMessage('');
+          if (userInitiated) showMessage('服务状态已更新');
         }
-        await refresh();
-        if (failures.length) showMessage(failures[0]);
+      } catch (error) {
+        state.connection = error.code === 'PERMISSION_DENIED' ? 'denied' : 'error';
+        showMessage(error.message || '读取服务失败','services-read');
+      } finally { setLoading(false); render(); }
+    })();
+    try { await refreshPromise; } finally { refreshPromise = null; }
+  }
+  async function saveMembership(service,key,checked) {
+    if (!state.settingsReady || state.saving) return;
+    state.saving = true; render();
+    const values = new Set(state.settings[key]); checked ? values.add(service.component) : values.delete(service.component);
+    const candidate = model.normalize({...state.settings,[key]:[...values]});
+    try {
+      await writeSettings(candidate); state.settings = candidate;
+      showMessage(key === 'favorites' ? checked ? '已收藏服务' : '已取消收藏' : checked ? '已加入自动恢复，下一次检查会尝试启用' : '已关闭此服务的自动恢复');
+    } catch (error) { showMessage(error.message || '无法保存设置，原设置已保留','settings-write'); }
+    finally { state.saving = false; render(); }
+  }
+  async function setEnabled(service,enabled,stopMode=null) {
+    if(state.busy.has(service.component)||state.saving)return;
+    if(!enabled&&!state.settingsReady){showMessage('尚未读取自动恢复规则，请先重新读取设置','settings-read');render();return;}
+    if(!enabled&&state.settings.autoRestore.includes(service.component)&&!stopMode){stopRequest=service;render();document.getElementById('stop-service-name').textContent=service.appLabel+' · '+service.serviceLabel;document.getElementById('stop-service').showModal();call('app.setBackNavigation',{enabled:true}).catch(()=>{});return;}
+    if (state.busy.has(service.component)) return;
+    state.busy.add(service.component); render();
+    let paused=false;
+    try {
+      if(stopMode==='pause'){state.saving=true;render();const candidate=model.normalize({...state.settings,autoRestore:state.settings.autoRestore.filter(component=>component!==service.component)});await writeSettings(candidate);state.settings=candidate;paused=true;}
+      await call('accessibility.setEnabled',{component:service.component,enabled});
+      await refresh();
+      showMessage(enabled ? '服务已启用' : state.settings.autoRestore.includes(service.component) ? '服务已停用；自动恢复仍开启，下一次检查可能重新启用' : '服务已停用');
+    } catch (error) {
+      await refresh();showMessage((paused?'自动恢复已暂停，服务未完成停用：':'')+(error.message || '系统未完成操作'),'service-change');
+    } finally {state.saving=false;state.busy.delete(service.component);render();}
+  }
+  async function navigate(method,payload = {}) {
+    try { await call(method,payload,5000); } catch (error) { showMessage(error.message || '无法打开页面','navigation'); }
+  }
+  const stopDialog=document.getElementById('stop-service');
+  stopDialog.onclose=()=>{stopRequest=null;call('app.setBackNavigation',{enabled:document.getElementById('service-detail').open}).catch(()=>{});};
+  document.getElementById('stop-cancel').onclick=()=>stopDialog.close();
+  for(const [id,mode] of [['stop-once','once'],['stop-pause','pause']])document.getElementById(id).onclick=()=>{const service=stopRequest;stopDialog.close();if(service)setEnabled(service,false,mode);};
+  document.getElementById('service-detail').onclose=()=>call('app.setBackNavigation',{enabled:false}).catch(()=>{});
+  document.getElementById('service-detail-close').onclick=()=>document.getElementById('service-detail').close();
+  elements['search-toggle'].onclick=()=>{state.searchOpen=!state.searchOpen;if(!state.searchOpen){state.query='';elements.query.value='';}render();if(state.searchOpen)elements.query.focus();};
+  elements['search-close'].onclick=()=>{state.searchOpen=false;state.query='';elements.query.value='';render();};
+  elements.refresh.onclick = () => refresh(true);
+  elements.query.oninput = event => { state.query = event.target.value; render(); };
+  elements.filters.onclick = event => { const button = event.target.closest('[data-filter]'); if (button) { state.filter = button.dataset.filter; render(); } };
+  elements['reset-filter'].onclick = () => { state.query = ''; state.filter = 'all'; elements.query.value = ''; render(); };
+  elements['open-permissions'].onclick = () => navigate('app.openPermissions');
+  elements['resolve-connection'].onclick = () => state.connection === 'denied' ? navigate('app.openPermissions') : navigate('app.openTool',{pluginId:'shizuku_auth',toolId:'main'});
+  elements['retry-settings'].onclick = async () => { await loadSettings(); render(); };
+  function runtimeEvent(message) {
+    const payload = message.payload || {};
+    if(message.event==='app.backRequested'&&stopDialog.open){stopDialog.close();return;}
+    if(message.event==='app.backRequested'&&document.getElementById('service-detail').open){document.getElementById('service-detail').close();return;}
+    if (message.event === 'app.permissionsChanged') {
+      if (payload.capability === 'scheduler') state.background = payload.granted === true;
+      if (payload.capability === 'accessibility.manage') {
+        state.manage = payload.granted === true;
+        if (!state.manage) { state.connection = 'denied'; state.services = []; }
       }
-    } catch (error) { showMessage(error.message || '无法保存自动授权设置'); }
-  };
-
-  (async () => { await ready; try { state.settings = await readSettings(); } catch (error) { showMessage(error.message); } render(); await refresh(); })();
+      render(); if (state.visible) refresh();
+    }
+    if (message.event === 'app.visibilityChanged') {
+      state.visible = payload.visible !== false;
+      if (state.visible) refresh();
+    }
+    if (message.event === 'accessibility.connectionChanged' || message.event === 'shizuku.connectionChanged') {
+      state.connection = payload.state || 'unknown'; render();
+      if (state.visible) refresh();
+    }
+    if (message.event === 'accessibility.servicesChanged' && state.visible) refresh();
+  }
+  (async () => {
+    try { const session = await ready; permissionSnapshot(session?.permissions); await Promise.all([loadSettings(),refresh()]); }
+    catch (error) { state.connection = 'error'; showMessage(error.message || '无法连接宿主','runtime'); }
+    finally { render(); elements.content.hidden = false; }
+  })();
 })();

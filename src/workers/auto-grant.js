@@ -15,17 +15,21 @@ globalThis.atsWorkerMain = async function (_input, ats) {
   const bytes = new Uint8Array(chunks.reduce((sum, item) => sum + item.length, 0));
   let cursor = 0; for (const chunk of chunks) { bytes.set(chunk, cursor); cursor += chunk.length; }
   const settings = JSON.parse(ats.decodeUtf8(bytes));
-  if (!settings.autoGrant || !Array.isArray(settings.favorites) || !settings.favorites.length) {
+  if (settings.formatVersion !== 1) throw new Error('Unsupported accessibility settings format');
+  // An explicit empty list must override the legacy favorites-based opt-in.
+  const configured = Array.isArray(settings.autoRestore) ? settings.autoRestore
+    : settings.autoGrant === true && Array.isArray(settings.favorites) ? settings.favorites : [];
+  const automatic = new Set(configured.filter(value => typeof value === 'string' && value.includes('/') && value.length <= 512));
+  if (!automatic.size) {
     return {enabled:0,reason:'disabled'};
   }
   const connection = await ats.call('accessibility.getConnection', {});
   if (connection.state !== 'ready') throw Object.assign(new Error(`accessibility provider is ${connection.state}`), {retryable:true});
   const result = await ats.call('accessibility.listServices', {});
-  const favorites = new Set(settings.favorites);
   let enabled = 0;
   const failed = [];
   for (const service of result.services || []) {
-    if (favorites.has(service.component) && !service.enabled) {
+    if (automatic.has(service.component) && !service.enabled) {
       try {
         await ats.call('accessibility.setEnabled', {component:service.component,enabled:true});
         enabled++;

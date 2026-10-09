@@ -30,6 +30,7 @@
   "requires": {
     "plugins": [],
     "capabilities": [
+      { "id": "app", "version": "^1.0.0", "optional": false, "scopes": {} },
       { "id": "accessibility.manage", "version": "^1.0.0", "optional": false, "scopes": { "allowBackground": true } },
       { "id": "storage", "version": "^1.0.0", "optional": false, "scopes": {} },
       { "id": "scheduler", "version": "^1.0.0", "optional": false, "scopes": {} }
@@ -44,22 +45,48 @@
         "title": "无障碍服务",
         "template": "status",
         "dataSource": "accessibility.listServices",
-        "sizes": ["2x2", "4x2"]
+        "sizes": ["2x2", "4x2", "1x1", "1x2", "2x1"]
       }
     ]
   },
   "datasets": [
     {
       "id": "accessibility-settings",
-      "title": "收藏与自动授权设置",
+      "title": "收藏与自动恢复设置",
       "category": "settings",
       "formatVersion": 1,
       "sensitive": false,
       "mediaType": "application/json",
       "validator": "json",
       "maxBytes": 131072,
-      "restoreModes": ["replace"],
-      "dependsOn": []
+      "restoreModes": [
+        "merge",
+        "replace"
+      ],
+      "dependsOn": [],
+      "mergePolicy": {
+        "format": "json",
+        "rule": {
+          "kind": "object",
+          "fields": {
+            "favorites": {
+              "kind": "set"
+            },
+            "autoRestore": {
+              "kind": "set"
+            }
+          },
+          "legacySets": {
+            "autoRestore": {
+              "source": "favorites",
+              "when": "autoGrant"
+            }
+          },
+          "constants": {
+            "autoGrant": false
+          }
+        }
+      }
     }
   ],
   "tasks": [
