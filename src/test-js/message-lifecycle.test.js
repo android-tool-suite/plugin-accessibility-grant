@@ -32,7 +32,7 @@ const flush = () => new Promise(resolve=>setImmediate(resolve));
 async function setup(denied = true) {
   const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,new Element('div'));return elements.get(id);};
   get('content').hidden=true;
-  const native={denied,saveError:false,toggleError:false,enabled:false,calls:[],writes:[]};
+  const native={denied,saveError:false,toggleError:false,enabled:false,calls:[],writes:[],holdServicesRead:false,heldServiceReads:[]};
   const identity={pluginId:'test.accessibility',sessionId:'test-session'};
   const transport={onmessage:null,postMessage(raw){
     const request=JSON.parse(raw);
@@ -55,7 +55,9 @@ async function setup(denied = true) {
       if(request.method==='accessibility.setEnabled'&&native.toggleError)error={code:'SYSTEM_REJECTED',message:'系统阻止了此服务'};
       else if(request.method==='accessibility.setEnabled')native.enabled=request.payload.enabled;
       if(request.method==='storage.dataset.write')native.writes.push(JSON.parse(Buffer.from(request.payload.bytes,'base64').toString('utf8')));
-      transport.onmessage({data:JSON.stringify({...identity,kind:'response',requestId:request.requestId,ok:!error,result,error})});
+      const respond=()=>transport.onmessage({data:JSON.stringify({...identity,kind:'response',requestId:request.requestId,ok:!error,result,error})});
+      if(request.method==='accessibility.listServices'&&native.holdServicesRead)native.heldServiceReads.push(respond);
+      else respond();
     });
   }};
   const document={querySelector:selector=>({content:selector.includes('ats-plugin-id')?identity.pluginId:identity.sessionId}),getElementById:get,createElement:tag=>new Element(tag),createElementNS:(_,tag)=>new Element(tag),activeElement:null};
@@ -90,6 +92,40 @@ test('系统启停错误及手动刷新结果分别保留',async()=>{
   assert.equal(ui.get('message').textContent,'服务状态已更新');
   await ui.event('accessibility.servicesChanged');
   assert.equal(ui.get('message').textContent,'服务状态已更新');
+});
+
+for(const status of ['succeeded','failed','cancelled'])test(`auto restore ${status} rereads the visible service state`,async()=>{
+  const ui=await setup(false);ui.native.enabled=true;
+  await ui.event('scheduler.runChanged',{taskId:'auto-grant',status});
+  assert.equal(ui.control('enabled:').checked,true);
+});
+
+test('restore completion during an old query schedules one follow-up read',async()=>{
+  const ui=await setup(false);ui.native.holdServicesRead=true;
+  const reading=ui.get('refresh').onclick();await flush();
+  assert.equal(ui.native.heldServiceReads.length,1);
+  const before=ui.native.calls.filter(call=>call.method==='accessibility.listServices').length;
+  ui.native.enabled=true;
+  await ui.event('scheduler.runChanged',{taskId:'auto-grant',status:'succeeded'});
+  await ui.event('scheduler.runChanged',{taskId:'auto-grant',status:'succeeded'});
+  ui.native.holdServicesRead=false;ui.native.heldServiceReads.shift()();
+  await reading;await flush();
+  assert.equal(ui.control('enabled:').checked,true);
+  assert.equal(ui.native.calls.filter(call=>call.method==='accessibility.listServices').length,before+1);
+});
+
+test('hidden pages wait until visible and unrelated or active tasks do not reread services',async()=>{
+  const ui=await setup(false);
+  const reads=()=>ui.native.calls.filter(call=>call.method==='accessibility.listServices').length;
+  const before=reads();
+  for(const status of ['queued','running','retrying','coalesced'])await ui.event('scheduler.runChanged',{taskId:'auto-grant',status});
+  await ui.event('scheduler.runChanged',{taskId:'another-task',status:'succeeded'});
+  assert.equal(reads(),before);
+  await ui.event('app.visibilityChanged',{visible:false});ui.native.enabled=true;
+  await ui.event('scheduler.runChanged',{taskId:'auto-grant',status:'succeeded'});
+  assert.equal(reads(),before);
+  await ui.event('app.visibilityChanged',{visible:true});
+  assert.equal(ui.control('enabled:').checked,true);
 });
 
 test('optional service search closes cleanly and grouping retains independent controls',async()=>{

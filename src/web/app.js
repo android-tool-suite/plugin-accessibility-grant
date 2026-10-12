@@ -112,7 +112,7 @@
     error:['无法读取服务','检查连接和权限后重新检查；已有设置不会被清空。'],
     unknown:['连接状态尚未确认','重新检查后可以管理服务。']
   };
-  let progressTimer, refreshPromise;
+  let progressTimer, refreshPromise, refreshPending = false;
   function showMessage(text,source = 'feedback') {
     state.message = text || ''; state.messageSource = text ? source : ''; renderMessage();
   }
@@ -201,25 +201,29 @@
     catch (error) { state.settingsReady = false; showMessage(error.message || '无法读取设置','settings-read'); }
   }
   async function refresh(userInitiated = false) {
-    if (refreshPromise) return refreshPromise;
-    refreshPromise = (async () => {
-      setLoading(true);
-      try {
-        const connection = await call('accessibility.getConnection',{},5000);
-        state.connection = connection.state;
-        if (connection.state === 'ready') {
-          const result = await call('accessibility.listServices');
-          state.services = Array.isArray(result.services) ? result.services : [];
-          state.manage = true;
-          if (state.messageSource === 'services-read') showMessage('');
-          if (userInitiated) showMessage('服务状态已更新');
-        }
-      } catch (error) {
-        state.connection = error.code === 'PERMISSION_DENIED' ? 'denied' : 'error';
-        showMessage(error.message || '读取服务失败','services-read');
-      } finally { setLoading(false); render(); }
-    })();
-    try { await refreshPromise; } finally { refreshPromise = null; }
+    if (refreshPromise) { refreshPending = true; return refreshPromise; }
+    do {
+      refreshPending = false;
+      refreshPromise = (async () => {
+        setLoading(true);
+        try {
+          const connection = await call('accessibility.getConnection',{},5000);
+          state.connection = connection.state;
+          if (connection.state === 'ready') {
+            const result = await call('accessibility.listServices');
+            state.services = Array.isArray(result.services) ? result.services : [];
+            state.manage = true;
+            if (state.messageSource === 'services-read') showMessage('');
+            if (userInitiated) showMessage('服务状态已更新');
+          }
+        } catch (error) {
+          state.connection = error.code === 'PERMISSION_DENIED' ? 'denied' : 'error';
+          showMessage(error.message || '读取服务失败','services-read');
+        } finally { setLoading(false); render(); }
+      })();
+      try { await refreshPromise; } finally { refreshPromise = null; }
+      // A completed restore may arrive while this query still contains the old state.
+    } while (refreshPending && state.visible);
   }
   async function saveMembership(service,key,checked) {
     if (!state.settingsReady || state.saving) return;
@@ -287,6 +291,8 @@
       if (state.visible) refresh();
     }
     if (message.event === 'accessibility.servicesChanged' && state.visible) refresh();
+    if (message.event === 'scheduler.runChanged' && payload.taskId === 'auto-grant'
+        && ['succeeded','failed','cancelled'].includes(payload.status) && state.visible) refresh();
   }
   (async () => {
     try { const session = await ready; permissionSnapshot(session?.permissions); await Promise.all([loadSettings(),refresh()]); }
